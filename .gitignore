@@ -2,3 +2,11 @@
 **/*.db
 *.db
 **/algo
+
+# log文件
+log/*
+xcrypto/log/*
+
+## 敏感配置文件
+xcrypto/private_key.pem
+xcrypto/spot.json
