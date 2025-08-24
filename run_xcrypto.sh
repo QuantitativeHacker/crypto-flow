@@ -60,7 +60,9 @@ run_in_docker() {
       # Build Python strategy package (inside project-only venv)
       cd /workspace/pyalgo && python3 -m venv .venv && source .venv/bin/activate && \
         python -m pip install --upgrade pip 'maturin>=1.5,<2.0' && \
-        maturin develop -r; \
+        maturin develop -r && \
+        # Install Python requirements for strategies (mounted from /strategies)
+        python -m pip install -r /strategies/requirements.txt || true; \
       # Run server from project root so config & pem are discoverable
       cd /workspace && \
       echo '[INFO] Launching $MODE server on ws://localhost:8111' && \
@@ -101,6 +103,10 @@ run_locally() {
   source .venv/bin/activate
   python -m pip install --upgrade pip 'maturin>=1.5,<2.0'
   maturin develop -r
+  # Install Python requirements from repo root (SCRIPT_DIR)
+  if [[ -f "$SCRIPT_DIR/requirements.txt" ]]; then
+    python -m pip install -r "$SCRIPT_DIR/requirements.txt" || true
+  fi
   deactivate || true
   popd >/dev/null
 

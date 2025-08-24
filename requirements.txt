@@ -1,0 +1,8 @@
+# Core dependencies for Python examples
+numpy>=1.23,<3
+pandas>=1.5,<3
+
+# Parquet support (choose one engine)
+pyarrow>=12,<17
+# or
+# fastparquet>=0.8
