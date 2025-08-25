@@ -1,21 +1,65 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# One-click setup and run for xcrypto with minimal interference to host.
-# Default: use Docker to isolate toolchains and system libs.
-# Fallback: use local environment (venv + cargo) without installing system packages.
-# Usage:
-#   ./run_xcrypto.sh [spot|usdt]
-# Examples:
-#   ./run_xcrypto.sh          # default spot
-#   ./run_xcrypto.sh usdt     # run usdt futures
+# 一键配置和运行xcrypto项目 - 使用miniconda环境管理
+# 默认：使用Docker容器隔离环境（推荐）
+# 备选：使用本地miniconda环境
+# 用法:
+#   ./run_xcrypto.sh [spot|usdt] [--setup|--docker|--local]
+# 示例:
+#   ./run_xcrypto.sh                    # 默认spot模式，自动选择Docker或本地
+#   ./run_xcrypto.sh usdt               # USDT期货模式
+#   ./run_xcrypto.sh spot --setup       # 配置本地miniconda环境
+#   ./run_xcrypto.sh spot --docker      # 强制使用Docker
+#   ./run_xcrypto.sh spot --local       # 强制使用本地环境
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR/xcrypto"
 WORKSPACE_DIR="$PROJECT_ROOT"
-MODE="${1:-spot}"
+
+# 解析参数
+MODE="spot"
+FORCE_MODE=""
+
+for arg in "$@"; do
+  case $arg in
+    spot|usdt)
+      MODE="$arg"
+      ;;
+    --setup)
+      FORCE_MODE="setup"
+      ;;
+    --docker)
+      FORCE_MODE="docker"
+      ;;
+    --local)
+      FORCE_MODE="local"
+      ;;
+    --help|-h)
+      echo "xcrypto 一键运行脚本"
+      echo "用法: $0 [spot|usdt] [--setup|--docker|--local|--help]"
+      echo ""
+      echo "模式:"
+      echo "  spot    现货交易模式 (默认)"
+      echo "  usdt    USDT期货模式"
+      echo ""
+      echo "选项:"
+      echo "  --setup   配置本地miniconda环境"
+      echo "  --docker  强制使用Docker容器"
+      echo "  --local   强制使用本地miniconda环境"
+      echo "  --help    显示此帮助信息"
+      exit 0
+      ;;
+    *)
+      echo "[错误] 未知参数: $arg" >&2
+      echo "使用 --help 查看用法" >&2
+      exit 1
+      ;;
+  esac
+done
+
 if [[ "$MODE" != "spot" && "$MODE" != "usdt" ]]; then
-  echo "[ERROR] Unknown mode: $MODE (expected 'spot' or 'usdt')" >&2
+  echo "[错误] 未知模式: $MODE (期望 'spot' 或 'usdt')" >&2
   exit 1
 fi
 
@@ -32,91 +76,197 @@ if [[ ! -f "$PEM_FILE" ]]; then
 fi
 
 CONFIG_BASENAME="$(basename "$CONFIG_JSON")"
+ENV_NAME="xcrypto"
+
+# 检查conda是否可用
+check_conda() {
+  if command -v conda >/dev/null 2>&1; then
+    return 0
+  elif [[ -f "$HOME/miniconda3/bin/conda" ]]; then
+    export PATH="$HOME/miniconda3/bin:$PATH"
+    return 0
+  elif [[ -f "$HOME/anaconda3/bin/conda" ]]; then
+    export PATH="$HOME/anaconda3/bin:$PATH"
+    return 0
+  else
+    return 1
+  fi
+}
+
+# 设置本地miniconda环境
+setup_local_environment() {
+  echo "[信息] 配置本地miniconda环境..."
+  
+  if ! check_conda; then
+    echo "[错误] 未找到conda。请先安装miniconda或anaconda："
+    echo "  下载地址: https://docs.conda.io/en/latest/miniconda.html"
+    echo "  或运行: wget https://repo.anaconda.com/miniconda/Miniconda3-latest-$(uname -s)-$(uname -m).sh"
+    echo "         bash Miniconda3-latest-$(uname -s)-$(uname -m).sh"
+    exit 1
+  fi
+
+  echo "[信息] 检测到conda: $(command -v conda)"
+  
+  # 检查环境是否已存在
+  if conda env list | grep -q "^$ENV_NAME "; then
+    echo "[信息] conda环境 '$ENV_NAME' 已存在"
+    read -p "是否重新创建环境? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+      echo "[信息] 删除现有环境..."
+      conda env remove -n "$ENV_NAME" -y
+    else
+      echo "[信息] 使用现有环境"
+      return 0
+    fi
+  fi
+
+  # 创建conda环境
+  echo "[信息] 创建conda环境 '$ENV_NAME'..."
+  if [[ -f "$SCRIPT_DIR/environment.yml" ]]; then
+    conda env create -n "$ENV_NAME" -f "$SCRIPT_DIR/environment.yml"
+  else
+    echo "[错误] 未找到environment.yml文件: $SCRIPT_DIR/environment.yml"
+    exit 1
+  fi
+
+  echo "[成功] 本地miniconda环境配置完成!"
+  echo "[信息] 激活环境: conda activate $ENV_NAME"
+}
 
 run_in_docker() {
-  echo "[INFO] Using Docker isolation (recommended, minimal host changes)"
-  # Map port 8111 for WS server; mount workspace and build/run inside container.
-  # Use named volumes for caching to avoid recompilation
+  echo "[信息] 使用Docker容器运行 (推荐，环境隔离)"
+  
+  # 检查Docker镜像是否存在，如果不存在则构建
+  IMAGE_NAME="xcrypto-dev:latest"
+  if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+    echo "[信息] Docker镜像不存在，正在构建..."
+    if [[ ! -f "$SCRIPT_DIR/Dockerfile.dev" ]]; then
+      echo "[错误] 未找到Dockerfile.dev: $SCRIPT_DIR/Dockerfile.dev"
+      exit 1
+    fi
+    docker build -f "$SCRIPT_DIR/Dockerfile.dev" -t "$IMAGE_NAME" "$SCRIPT_DIR" || {
+      echo "[错误] Docker镜像构建失败"
+      exit 1
+    }
+  fi
+  
+  echo "[信息] 启动Docker容器，端口映射 8111:8111"
+  # 映射8111端口用于WS服务，挂载工作目录，使用缓存卷避免重复编译
   docker run --rm -it \
     -p 8111:8111 \
-    -v "$WORKSPACE_DIR":/workspace \
-    -v "$SCRIPT_DIR":/strategies \
+    -v "$SCRIPT_DIR":/app \
     -v xcrypto-cargo-cache:/usr/local/cargo/registry \
-    -v xcrypto-target-cache:/workspace/target \
-    -w /workspace \
-    rust:1.80-bookworm \
+    -v xcrypto-target-cache:/app/xcrypto/target \
+    -w /app \
+    "$IMAGE_NAME" \
     bash -c "set -e; \
-      export DEBIAN_FRONTEND=noninteractive; \
-      apt-get update -y; \
-      apt-get install -y --no-install-recommends \
-        ca-certificates build-essential python3 python3-venv python3-pip pkg-config libssl-dev libsqlite3-dev; \
-      update-ca-certificates; \
-      CARGO_BIN=/usr/local/cargo/bin/cargo; \
-      if [ ! -x \$CARGO_BIN ]; then CARGO_BIN=\"cargo\"; fi; \
-      echo \"[INFO] Using cargo at: \$(command -v \$CARGO_BIN || echo \$CARGO_BIN)\"; \
-      \$CARGO_BIN --version || true; \
-      # Build Rust binary
-      cd /workspace/binance/$MODE && \$CARGO_BIN build -r; \
-      # Build Python strategy package (inside project-only venv)
-      cd /workspace/pyalgo && python3 -m venv .venv && source .venv/bin/activate && \
-        python -m pip install --upgrade pip 'maturin>=1.5,<2.0' && \
-        maturin develop -r && \
-        # Install Python requirements for strategies (mounted from /strategies)
-        python -m pip install -r /strategies/requirements.txt || true; \
-      # Run server from project root so config & pem are discoverable
-      cd /workspace && \
-      echo '[INFO] Launching $MODE server on ws://localhost:8111' && \
-      /workspace/target/release/$MODE -c=$CONFIG_BASENAME -l=info"
+      source activate $ENV_NAME; \
+      echo '[信息] 使用conda环境: $ENV_NAME'; \
+      conda info --envs; \
+      # 构建Rust二进制文件
+      cd xcrypto/binance/$MODE && cargo build -r; \
+      # 构建Python策略包
+      cd ../pyalgo && maturin develop -r; \
+      # 安装Python依赖
+      python -m pip install -r /app/requirements.txt || true; \
+      # 从项目根目录运行，以便发现配置文件
+      cd /app/xcrypto && \
+      echo '[信息] 启动 $MODE 服务器，地址: ws://localhost:8111' && \
+      ./target/release/$MODE -c=$CONFIG_BASENAME -l=info"
 }
 
 run_locally() {
-  echo "[INFO] Docker not found. Falling back to local run (no system installs)."
-  # Sanity checks without modifying host
-  if ! command -v cargo >/dev/null 2>&1; then
-    echo "[ERROR] 'cargo' not found. Please install Rust (rustup) and retry." >&2
+  echo "[信息] 使用本地miniconda环境运行"
+  
+  # 检查conda环境
+  if ! check_conda; then
+    echo "[错误] 未找到conda。请运行以下命令之一："
+    echo "  $0 --setup    # 自动安装miniconda环境"
+    echo "  或手动安装: https://docs.conda.io/en/latest/miniconda.html"
     exit 1
-  fi
-  if ! command -v python3 >/dev/null 2>&1; then
-    echo "[ERROR] 'python3' not found. Please install Python 3.10+ and retry." >&2
-    exit 1
-  fi
-  # Check system libs availability but do not install automatically
-  if ! command -v pkg-config >/dev/null 2>&1; then
-    echo "[WARN] 'pkg-config' not found. OpenSSL/SQLite detection may fail at build time." >&2
-  else
-    if ! pkg-config --exists openssl; then
-      echo "[WARN] OpenSSL dev libraries not detected by pkg-config. Build may fail."
-    fi
-    if ! pkg-config --exists sqlite3; then
-      echo "[WARN] SQLite3 dev libraries not detected by pkg-config. Build may fail."
-    fi
   fi
 
-  # Build Rust binary (release)
+  # 检查xcrypto环境是否存在
+  if ! conda env list | grep -q "^$ENV_NAME "; then
+    echo "[错误] conda环境 '$ENV_NAME' 不存在"
+    echo "请运行: $0 --setup 来创建环境"
+    exit 1
+  fi
+
+  echo "[信息] 激活conda环境: $ENV_NAME"
+  
+  # 使用conda环境中的工具
+  eval "$(conda shell.bash hook)"
+  conda activate "$ENV_NAME"
+  
+  # 验证工具可用性
+  if ! command -v cargo >/dev/null 2>&1; then
+    echo "[错误] cargo未在conda环境中找到，请检查environment.yml配置"
+    exit 1
+  fi
+  
+  if ! command -v python >/dev/null 2>&1; then
+    echo "[错误] python未在conda环境中找到"
+    exit 1
+  fi
+
+  echo "[信息] 使用工具版本:"
+  echo "  Python: $(python --version)"
+  echo "  Cargo: $(cargo --version)"
+  echo "  Conda环境: $(conda info --envs | grep '*' | awk '{print $1}')"
+
+  # 构建Rust二进制文件
+  echo "[信息] 构建Rust二进制文件..."
   pushd "$WORKSPACE_DIR/binance/$MODE" >/dev/null
   cargo build -r
   popd >/dev/null
 
-  # Build Python strategy package in project-local venv
+  # 构建Python策略包
+  echo "[信息] 构建Python策略包..."
   pushd "$WORKSPACE_DIR/pyalgo" >/dev/null
-  python3 -m venv .venv
-  source .venv/bin/activate
-  python -m pip install --upgrade pip 'maturin>=1.5,<2.0'
+  python -m pip install --upgrade pip
   maturin develop -r
-  # Install Python requirements from repo root (SCRIPT_DIR)
+  # 安装Python依赖
   if [[ -f "$SCRIPT_DIR/requirements.txt" ]]; then
     python -m pip install -r "$SCRIPT_DIR/requirements.txt" || true
   fi
-  deactivate || true
   popd >/dev/null
 
-  # Run from project root so that private_key.pem resolves (pem path is relative in JSON)
-  echo "[INFO] Launching $MODE server on ws://localhost:8111"
-  "$WORKSPACE_DIR/target/release/$MODE" -c="$CONFIG_JSON" -l=info
+  # 从项目根目录运行，确保private_key.pem路径正确
+  echo "[信息] 启动 $MODE 服务器，地址: ws://localhost:8111"
+  cd "$WORKSPACE_DIR"
+  "./target/release/$MODE" -c="$CONFIG_BASENAME" -l=info
 }
 
-if command -v docker >/dev/null 2>&1; then
-  run_in_docker
-else
-  run_locally
-fi
+# 主执行逻辑
+case "$FORCE_MODE" in
+  setup)
+    setup_local_environment
+    echo ""
+    echo "[信息] 环境配置完成！现在可以运行："
+    echo "  $0 $MODE --local    # 使用本地环境运行"
+    echo "  $0 $MODE --docker   # 使用Docker容器运行"
+    ;;
+  docker)
+    if ! command -v docker >/dev/null 2>&1; then
+      echo "[错误] Docker未安装。请先安装Docker或使用 --local 选项"
+      exit 1
+    fi
+    run_in_docker
+    ;;
+  local)
+    run_locally
+    ;;
+  *)
+    # 自动选择运行方式
+    if command -v docker >/dev/null 2>&1; then
+      echo "[信息] 检测到Docker，使用容器运行（推荐）"
+      echo "[信息] 如需使用本地环境，请添加 --local 选项"
+      run_in_docker
+    else
+      echo "[信息] 未检测到Docker，使用本地miniconda环境"
+      run_locally
+    fi
+    ;;
+esac

@@ -1,0 +1,35 @@
+# 开发友好：纯 conda（Miniconda）基础镜像
+FROM continuumio/miniconda3:24.5.0-0
+
+ARG ENV_NAME=xcrypto
+WORKDIR /app
+
+# 安装系统构建工具和SSL开发库
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        build-essential \
+        pkg-config \
+        libssl-dev \
+        ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
+
+# 复制环境描述并创建环境（使用更快的solver和并行下载）
+COPY environment.yml /app/environment.yml
+RUN conda config --set solver libmamba && \
+    conda env create -n ${ENV_NAME} -f /app/environment.yml && \
+    conda clean -a -y
+
+# 开发挂载点（只复制必要文件以利用缓存）
+COPY xcrypto/ /app/xcrypto/
+COPY requirements.txt /app/requirements.txt
+
+# 激活环境并安装/构建 pyo3 扩展
+SHELL ["bash", "-lc"]
+RUN source activate ${ENV_NAME} && \
+    python -m pip install -U pip && \
+    cd xcrypto/pyalgo && maturin develop --release
+
+# 默认进入交互 shell，确保环境激活
+CMD ["bash", "-lc", "source activate xcrypto && bash"]
+
+
