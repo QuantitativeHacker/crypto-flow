@@ -33,13 +33,6 @@ class Demo:
         self.keep_window = 1300
         self.buf = deque(maxlen=self.keep_window)  # 每个元素为 dict：{"ts", "o","h","l","c","vol","amount"}
 
-        # 当前分钟的临时快照（同一分钟内覆盖更新；分钟切换时推入 buf）
-        self.cur_ts = None
-        self.cur_row = None
-        
-        # Track last processed minute to avoid duplicates
-        self.last_minute = None
-
         # parameters (align with user's notebook)
         self.window = 1200  # 1200 minutes = 20 hours
         self.min_mean = 100
@@ -73,73 +66,41 @@ class Demo:
 
     # ----------------- callbacks -----------------
     def on_kline(self, kline: Kline):
-        # lazily derive output filenames using kline.stream on first data
-        if self._out_parquet is None or self._out_csv is None:
-            symbol_stream = kline.stream if hasattr(kline, "stream") else f"{kline.symbol}@kline"
-            fname = symbol_stream.replace("@", "_").replace(":", "")
+        # 初始化输出文件名（首次调用）
+        if self._out_csv is None:
+            fname = kline.stream.replace("@", "_").replace(":", "")
             self._out_parquet = self.out_dir / f"{fname}_factor.parquet"
             self._out_csv = self.out_dir / f"{fname}_factor.csv"
             self._out_csv_5m = self.out_dir / f"{fname}_factor_5m.csv"
 
-        # Convert timestamp to minute-level precision
-        timestamp_ms = int(kline.time)
-        minute_timestamp = (timestamp_ms // 60000) * 60000  # Round down to minute
-        current_minute = pd.to_datetime(minute_timestamp, unit="ms")
+        # 计算分钟级时间戳
+        current_minute = pd.to_datetime((kline.time // 60000) * 60000, unit="ms")
         
-        # 第一次初始化当前分钟
-        if self.cur_ts is None:
-            self.cur_ts = current_minute
-            self.cur_row = {
-                "ts": current_minute,
-                "o": kline.open,
-                "h": kline.high,
-                "l": kline.low,
-                "c": kline.close,
-                "vol": kline.volume,
-                "amount": kline.amount,
-            }
-            print(f"📊 New minute data: {current_minute} | Close: {kline.close} | Buffer: {len(self.buf)}")
-            return
-
-        # 新分钟开始：先结算上一分钟（已收盘），再开启新分钟
-        if current_minute > self.cur_ts:
-            # 把上一分钟最终快照推入环形缓冲
-            self.buf.append(self.cur_row)
-
-            # 计算指标（当缓冲长度满足最小窗口）
+        # 构建状态信息
+        status = "🟢CLOSED" if kline.is_closed else "🔵LIVE"
+        buy_pct = f" | Buy%: {kline.buy_volume/kline.volume*100:.1f}%" if kline.volume > 0 else ""
+        info = f" | Trades: {kline.trade_count}{buy_pct}"
+        
+        if kline.is_closed:
+            # K线完结：处理 → 计算 → 保存
+            self.buf.append({
+                "ts": current_minute, "o": kline.open, "h": kline.high, 
+                "l": kline.low, "c": kline.close, "vol": kline.volume, "amount": kline.amount
+            })
+            
+            # 计算指标并输出信号
             if len(self.buf) >= max(self.min_corr, self.min_mean):
-                self._compute_indicator()  # 从 buf 构建 df 并计算 pv_corr/zscore 等
+                self._compute_indicator()
                 if hasattr(self, 'df') and "zscore" in self.df.columns:
                     last = self.df.iloc[-1]
-                    print(
-                        f"📈 {self.cur_ts} | close={last.get('c')} | pv_corr={round(last.get('pv_corr', np.nan), 4)} | z={round(last.get('zscore', np.nan), 4)}"
-                    )
-
-            # 持久化上一分钟（只追加一行）
+                    print(f"📈 SIGNAL: {current_minute} | close={last.get('c')} | "
+                          f"pv_corr={last.get('pv_corr', np.nan):.4f} | z={last.get('zscore', np.nan):.4f}")
+            
             self._persist()
-
-            # 开启新分钟快照（同一分钟内仅覆盖，不落盘不计算）
-            self.cur_ts = current_minute
-            self.cur_row = {
-                "ts": current_minute,
-                "o": kline.open,
-                "h": kline.high,
-                "l": kline.low,
-                "c": kline.close,
-                "vol": kline.volume,
-                "amount": kline.amount,
-            }
-            print(f"📊 New minute data: {current_minute} | Close: {kline.close} | Buffer: {len(self.buf)}")
+            print(f"📊 {status} {current_minute} | Close: {kline.close}{info}")
         else:
-            # 同一分钟内：只覆盖为最新快照（交易所逐秒 kline 的最新值）
-            self.cur_row.update({
-                "h": kline.high,
-                "l": kline.low,
-                "c": kline.close,
-                "vol": kline.volume,
-                "amount": kline.amount,
-            })
-            print(f"🔄 Update: {current_minute} | Close: {kline.close}")
+            # 实时更新：仅显示
+            print(f"🔄 {status} {current_minute} | Close: {kline.close}{info}")
 
     def on_depth(self, depth: Depth):
         # keep the original simple print for depth
@@ -210,33 +171,29 @@ class Demo:
         )
 
     def _persist(self):
-        # 优先使用已计算好的 df；如果尚未达到最小窗口，则用环形缓冲构建 df（仅 OHLCV）
-        df = getattr(self, "df", None)
-        if df is None or df.empty or (df.index[-1] if not df.empty else None) != (self.buf[-1]["ts"] if self.buf else None):
-            df = self._build_df_from_buf()
+        # 直接使用计算好的df或从缓冲构建
+        if not self.buf:
+            return
+            
+        df = getattr(self, "df", None) or self._build_df_from_buf()
         if df.empty:
             return
 
-        # 只持久化"上一分钟（环形缓冲最后一行）"
+        # 保存最新的一行数据
         last_row = df.iloc[[-1]].copy()
         last_row.index.name = "ts"
 
-        desired_cols = [
-            "o", "h", "l", "c", "vol", "amount",
-            "pv_corr", "fast_ema", "slow_ema", "slow_std", "zscore",
-        ]
-        out_cols = [c for c in desired_cols if c in last_row.columns]
-        last_row = last_row[out_cols]
+        # 选择需要保存的列
+        available_cols = [c for c in ["o", "h", "l", "c", "vol", "amount", "pv_corr", "fast_ema", "slow_ema", "slow_std", "zscore"] if c in last_row.columns]
+        last_row = last_row[available_cols]
 
-        # 采用 CSV 追加写入，保留全历史且不占用过多内存；首次写入带表头
-        if self._out_csv is not None:
-            header = not self._out_csv.exists()
-            last_row.to_csv(self._out_csv, mode="a", header=header)
+        # 追加保存到CSV
+        header = not self._out_csv.exists()
+        last_row.to_csv(self._out_csv, mode="a", header=header)
 
-        # 附加：5m 结果持久化，仅在产生新5m刻度时追加一行
+        # 保存5分钟数据（如果有新的zscore）
         df5 = getattr(self, "df5", None)
-        if df5 is not None and not df5.empty and self._out_csv_5m is not None:
-            # 取最后一个非NaN的 zscore 点
+        if df5 is not None and not df5.empty:
             non_na = df5[~df5["zscore"].isna()]
             if not non_na.empty:
                 last_5m_ts = non_na.index[-1]

@@ -173,6 +173,42 @@ class BarSubscription(Tradable):
         return self.data.amount if self.data else 0.0
 
     @property
+    def start_time(self) -> int:
+        return self.data.start_time if self.data else 0
+
+    @property
+    def start_datetime(self) -> datetime:
+        return self.data.start_datetime if self.data else datetime.min
+
+    @property
+    def interval(self) -> str:
+        return self.data.interval if self.data else ""
+
+    @property
+    def first_trade_id(self) -> int:
+        return self.data.first_trade_id if self.data else 0
+
+    @property
+    def last_trade_id(self) -> int:
+        return self.data.last_trade_id if self.data else 0
+
+    @property
+    def trade_count(self) -> int:
+        return self.data.trade_count if self.data else 0
+
+    @property
+    def is_closed(self) -> bool:
+        return self.data.is_closed if self.data else False
+
+    @property
+    def buy_volume(self) -> float:
+        return self.data.buy_volume if self.data else 0.0
+
+    @property
+    def buy_amount(self) -> float:
+        return self.data.buy_amount if self.data else 0.0
+
+    @property
     def phase(self) -> Phase:
         return self.determine(self.time)
 
