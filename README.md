@@ -358,11 +358,6 @@ if __name__ == "__main__":
     eng.run()
 ```
 
-## Donation
+## Thanks
 
-Open source is not easy. Please give the author some encouragement. Treat the author a cup of Mixue or Luckin Coffee, your Issues will be resolved first.
-
-![alipay](static/alipay.jpeg) 
-![alipay](static/wechat.jpeg)
-
-[<img src="https://api.gitsponsors.com/api/badge/img?id=812315274" height="20">](https://api.gitsponsors.com/api/badge/link?p=jSG3FQ6nAvMW22QffekKb+nEDwkaSnF8cVA4uYURWa3AyRwPcwd0/tycHO/3aoCI83ZWwWUK2obkAP0qTY6RCdzMcKsqm1zqprrW2xRxUCfjV9O10XpxPYvrtCVR8Rp1gniUlSxY9aAVU6fVhtvuwA==)
+Thank [initial xcrypto project](https://github.com/Bohr1005/xcrypto)!
