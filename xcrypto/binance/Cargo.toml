@@ -16,3 +16,6 @@ serde_json = "1.0.116"
 clap = {version = "4.5.4", features = ["derive"] }
 futures = "0.3.30"
 url = "2.5.0"
+openssl.workspace = true
+base64.workspace = true
+reqwest.workspace = true

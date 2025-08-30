@@ -3,6 +3,7 @@ pub mod app;
 pub mod chat;
 pub mod handler;
 pub mod market;
+pub mod rest;
 pub mod session;
 pub mod subscriber;
 

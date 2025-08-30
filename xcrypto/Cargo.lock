@@ -218,10 +218,13 @@ name = "binance"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "base64 0.22.1",
  "clap",
  "futures 0.3.30",
  "log 0.4.21",
  "native-json",
+ "openssl",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",
@@ -3931,12 +3934,10 @@ name = "xcrypto"
 version = "0.1.1"
 dependencies = [
  "anyhow",
- "base64 0.22.1",
  "futures-util",
  "log 0.4.21",
  "logger",
  "native-json",
- "openssl",
  "reqwest",
  "serde",
  "serde_json",

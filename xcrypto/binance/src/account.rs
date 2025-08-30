@@ -5,7 +5,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
 use url::Url;
-use xcrypto::{rest::Rest, tungstenite::Message, ws::WebSocket};
+use xcrypto::{tungstenite::Message, ws::WebSocket};
+use crate::rest::Rest;
 
 async fn fetch_listen_key<T: DeserializeOwned>(rest: &Arc<Rest>, api: &str) -> anyhow::Result<T> {
     let rsp = rest.post(api, &[], false).await?;

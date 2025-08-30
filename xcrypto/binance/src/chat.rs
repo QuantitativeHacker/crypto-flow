@@ -308,11 +308,8 @@ pub enum FilterField {
     EXCHANGE_MAX_NUM_ICEBERG_ORDERS {
         maxNumIcebergOrders: i64,
     },
-    POSITION_RISK_CONTROL {
-        // 包含位置风险控制相关的字段
-        // 根据 Binance API 文档，这可能包含各种风险控制参数
-        // 暂时使用通用字段，可根据实际 API 响应调整
-    },
+    #[serde(other)]
+    Unknown,
 }
 
 #[allow(non_camel_case_types)]
@@ -402,11 +399,7 @@ impl Serialize for BinanceProduct {
                 FilterField::MIN_NOTIONAL { notional } => {
                     state.serialize_field("min_notional", &notional.parse::<f64>().unwrap())?;
                 }
-                FilterField::POSITION_RISK_CONTROL { .. } => {
-                    // 位置风险控制过滤器暂时跳过处理
-                    // 可根据需要添加具体的序列化逻辑
-                }
-                _ => (),
+                FilterField::Unknown => (),
             }
         }
         state.end()
@@ -1156,7 +1149,7 @@ mod tests {
                                                    {"filterType": "MIN_NOTIONAL", "notional": "20"}, 
                                                    {"multiplierUp": "1.0500", "multiplierDown": "0.9500", "filterType": "PERCENT_PRICE", "multiplierDecimal": "4"}], 
                                        "orderTypes": ["LIMIT", "MARKET", "STOP", "STOP_MARKET", "TAKE_PROFIT", "TAKE_PROFIT_MARKET", "TRAILING_STOP_MARKET"], 
-                                       "timeInForce": ["GTC", "IOC", "FOK", "GTX", "GTD"]}]}"#;
+                                       "timeInForce": ["GTC", "IOC", "FOK", "GTX", "GTD"}]}"#;
         let rsp: ProductResponse = serde_json::from_str(&s).unwrap();
         println!("{:?}", rsp);
     }

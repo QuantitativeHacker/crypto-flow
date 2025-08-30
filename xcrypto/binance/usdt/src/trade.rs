@@ -12,7 +12,7 @@ use xcrypto::chat::*;
 use xcrypto::error::*;
 use xcrypto::parser::Parser;
 use xcrypto::position::PositionDB;
-use xcrypto::rest::Rest;
+use crate::rest::Rest;
 use xcrypto::tungstenite::Message;
 
 async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, BinanceProduct>> {

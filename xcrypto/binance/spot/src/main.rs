@@ -7,7 +7,7 @@ use logger::*;
 use serde::Deserialize;
 use std::sync::Arc;
 use trade::SpotTrade;
-use xcrypto::rest::Rest;
+use crate::rest::Rest;
 
 #[derive(Debug, Deserialize)]
 struct Config {
