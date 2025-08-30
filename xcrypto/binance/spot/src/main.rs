@@ -1,5 +1,6 @@
 mod trade;
 
+use crate::rest::Rest;
 use binance::*;
 use clap::Parser;
 use log::{error, info};
@@ -7,7 +8,6 @@ use logger::*;
 use serde::Deserialize;
 use std::sync::Arc;
 use trade::SpotTrade;
-use crate::rest::Rest;
 
 #[derive(Debug, Deserialize)]
 struct Config {

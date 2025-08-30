@@ -217,6 +217,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tungstenite",
  "url 2.5.7",
  "xcrypto",
 ]
@@ -2962,6 +2963,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tungstenite",
  "url 2.5.7",
  "xcrypto",
 ]
@@ -3733,6 +3735,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tungstenite",
  "url 2.5.7",
  "xcrypto",
 ]

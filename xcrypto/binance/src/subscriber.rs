@@ -1,10 +1,8 @@
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc::UnboundedSender;
-use xcrypto::{
-    chat::{ErrorResponse, Response},
-    tungstenite::Message,
-};
+use tungstenite::Message;
+use xcrypto::chat::{ErrorResponse, Response};
 pub struct Subscriber {
     symbols: HashSet<String>,
     tx: UnboundedSender<Message>,

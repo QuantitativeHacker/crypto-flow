@@ -1,3 +1,4 @@
+use crate::rest::Rest;
 use ::serde::Serialize;
 use binance::chat::*;
 use binance::*;
@@ -12,8 +13,7 @@ use xcrypto::chat::*;
 use xcrypto::error::*;
 use xcrypto::parser::Parser;
 use xcrypto::position::PositionDB;
-use crate::rest::Rest;
-use xcrypto::tungstenite::Message;
+use tungstenite::Message;
 
 async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, BinanceProduct>> {
     let rsp = rest.get("/api/v3/exchangeInfo", &[], false).await?;

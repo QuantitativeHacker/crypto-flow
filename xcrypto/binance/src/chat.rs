@@ -214,23 +214,23 @@ impl BinanceKline {
 impl From<BinanceKline> for Kline {
     fn from(value: BinanceKline) -> Self {
         Kline {
-            time: value.data.k.T,                                                        // K线结束时间
-            start_time: value.data.k.t,                                                  // K线起始时间
+            time: value.data.k.T,       // K线结束时间
+            start_time: value.data.k.t, // K线起始时间
             symbol: value.data.s.to_lowercase(),
             stream: format!("{}@kline:{}", value.data.s, value.data.k.i).to_lowercase(),
-            interval: value.data.k.i,                                                    // K线间隔
-            open: value.data.k.o.parse().unwrap_or_default(),                           // 开盘价
-            high: value.data.k.h.parse().unwrap_or_default(),                           // 最高价
-            low: value.data.k.l.parse().unwrap_or_default(),                            // 最低价
-            close: value.data.k.c.parse().unwrap_or_default(),                          // 收盘价
-            volume: value.data.k.v.parse().unwrap_or_default(),                         // 成交量
-            amount: value.data.k.q.parse().unwrap_or_default(),                         // 成交额
-            first_trade_id: value.data.k.f,                                             // 第一笔成交ID
-            last_trade_id: value.data.k.L,                                              // 最后一笔成交ID
-            trade_count: value.data.k.n,                                                // 成交数量
-            is_closed: value.data.k.x,                                                  // K线是否完结
-            buy_volume: value.data.k.V.parse().unwrap_or_default(),                     // 主动买入成交量
-            buy_amount: value.data.k.Q.parse().unwrap_or_default(),                     // 主动买入成交额
+            interval: value.data.k.i,                           // K线间隔
+            open: value.data.k.o.parse().unwrap_or_default(),   // 开盘价
+            high: value.data.k.h.parse().unwrap_or_default(),   // 最高价
+            low: value.data.k.l.parse().unwrap_or_default(),    // 最低价
+            close: value.data.k.c.parse().unwrap_or_default(),  // 收盘价
+            volume: value.data.k.v.parse().unwrap_or_default(), // 成交量
+            amount: value.data.k.q.parse().unwrap_or_default(), // 成交额
+            first_trade_id: value.data.k.f,                     // 第一笔成交ID
+            last_trade_id: value.data.k.L,                      // 最后一笔成交ID
+            trade_count: value.data.k.n,                        // 成交数量
+            is_closed: value.data.k.x,                          // K线是否完结
+            buy_volume: value.data.k.V.parse().unwrap_or_default(), // 主动买入成交量
+            buy_amount: value.data.k.Q.parse().unwrap_or_default(), // 主动买入成交额
         }
     }
 }

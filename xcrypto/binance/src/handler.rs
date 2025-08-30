@@ -10,9 +10,9 @@ use tokio::signal::windows::{ctrl_break, ctrl_c};
 
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::time::Duration;
+use tungstenite::Message;
 use xcrypto::chat::{Login, PositionReq, PositionRsp, Request};
 use xcrypto::parser::Parser;
-use xcrypto::tungstenite::Message;
 use xcrypto::ws::Connection;
 
 pub struct Handler {

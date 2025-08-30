@@ -6,9 +6,10 @@ use std::net::SocketAddr;
 use std::{collections::HashMap, fmt::Debug};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::time::{Duration, Instant};
+use tungstenite::Message;
 use xcrypto::parser::Parser;
 use xcrypto::ws::WebSocket;
-use xcrypto::{chat::*, error::*, tungstenite::Message};
+use xcrypto::{chat::*, error::*};
 
 pub struct Market {
     addr: String,

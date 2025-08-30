@@ -21,9 +21,9 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use tokio::sync::mpsc::UnboundedSender;
+use tungstenite::Message;
 use xcrypto::chat::*;
 use xcrypto::parser::Parser;
-use xcrypto::tungstenite::Message;
 
 pub trait Trade {
     fn disconnected(&self) -> bool;

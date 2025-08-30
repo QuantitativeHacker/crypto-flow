@@ -5,7 +5,7 @@ use crate::Trade;
 use log::*;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot;
-use xcrypto::tungstenite::Message;
+use tungstenite::Message;
 use xcrypto::ws::{Connection, TcpStreamReceiver, TcpStreamSender, WebSocket};
 
 pub struct Application {

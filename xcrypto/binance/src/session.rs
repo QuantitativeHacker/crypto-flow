@@ -2,12 +2,10 @@ use log::*;
 use serde::Serialize;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::mpsc::UnboundedSender;
+use tungstenite::Message;
 use xcrypto::chat::Side;
+use xcrypto::chat::{Position, State};
 use xcrypto::position::PositionDB;
-use xcrypto::{
-    chat::{Position, State},
-    tungstenite::Message,
-};
 
 use crate::OrderTrait;
 

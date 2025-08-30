@@ -1,12 +1,13 @@
+use crate::rest::Rest;
 use crate::ListenKey;
 use log::*;
 use native_json::DeserializeOwned;
 use std::sync::Arc;
 use std::time::Duration;
 use std::time::Instant;
+use tungstenite::Message;
 use url::Url;
-use xcrypto::{tungstenite::Message, ws::WebSocket};
-use crate::rest::Rest;
+use xcrypto::ws::WebSocket;
 
 async fn fetch_listen_key<T: DeserializeOwned>(rest: &Arc<Rest>, api: &str) -> anyhow::Result<T> {
     let rsp = rest.post(api, &[], false).await?;

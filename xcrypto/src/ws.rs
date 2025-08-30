@@ -11,7 +11,10 @@ use std::{
 };
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use tokio_tungstenite::{tungstenite::{self, client::IntoClientRequest as _, Message}, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{
+    tungstenite::{self, client::IntoClientRequest as _, Message},
+    MaybeTlsStream, WebSocketStream,
+};
 
 #[derive(Debug)]
 pub enum Role {

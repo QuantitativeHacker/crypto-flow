@@ -55,23 +55,23 @@ pub struct Depth<T> {
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Kline {
-    pub time: i64,                  // 这根K线的结束时间 (T)
-    pub start_time: i64,            // 这根K线的起始时间 (t)
+    pub time: i64,       // 这根K线的结束时间 (T)
+    pub start_time: i64, // 这根K线的起始时间 (t)
     pub symbol: String,
     pub stream: String,
-    pub interval: String,           // K线间隔 (i)
-    pub open: f64,                  // 开盘价 (o)
-    pub high: f64,                  // 最高价 (h)
-    pub low: f64,                   // 最低价 (l)
-    pub close: f64,                 // 收盘价 (c)
-    pub volume: f64,                // 成交量 (v)
-    pub amount: f64,                // 成交额 (q)
-    pub first_trade_id: i64,        // 第一笔成交ID (f)
-    pub last_trade_id: i64,         // 最后一笔成交ID (L)
-    pub trade_count: i64,           // 成交数量 (n)
-    pub is_closed: bool,            // 这根K线是否完结 (x)
-    pub buy_volume: f64,            // 主动买入成交量 (V)
-    pub buy_amount: f64,            // 主动买入成交额 (Q)
+    pub interval: String,    // K线间隔 (i)
+    pub open: f64,           // 开盘价 (o)
+    pub high: f64,           // 最高价 (h)
+    pub low: f64,            // 最低价 (l)
+    pub close: f64,          // 收盘价 (c)
+    pub volume: f64,         // 成交量 (v)
+    pub amount: f64,         // 成交额 (q)
+    pub first_trade_id: i64, // 第一笔成交ID (f)
+    pub last_trade_id: i64,  // 最后一笔成交ID (L)
+    pub trade_count: i64,    // 成交数量 (n)
+    pub is_closed: bool,     // 这根K线是否完结 (x)
+    pub buy_volume: f64,     // 主动买入成交量 (V)
+    pub buy_amount: f64,     // 主动买入成交额 (Q)
 }
 
 #[derive(Debug, Serialize)]

@@ -1,3 +1,4 @@
+use crate::rest::Rest;
 use binance::chat::*;
 use binance::*;
 use log::*;
@@ -8,12 +9,11 @@ use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
+use tungstenite::Message;
 use xcrypto::chat::*;
 use xcrypto::error::*;
 use xcrypto::parser::Parser;
 use xcrypto::position::PositionDB;
-use crate::rest::Rest;
-use xcrypto::tungstenite::Message;
 
 async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, BinanceProduct>> {
     let rsp = rest.get("/fapi/v1/exchangeInfo", &[], false).await?;

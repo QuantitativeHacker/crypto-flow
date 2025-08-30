@@ -88,23 +88,23 @@ impl Depth {
 #[derive(Debug, Deserialize)]
 #[pyclass]
 pub struct Kline {
-    time: u64,                     // K线结束时间
-    start_time: u64,               // K线起始时间
+    time: u64,       // K线结束时间
+    start_time: u64, // K线起始时间
     symbol: String,
     stream: String,
-    interval: String,              // K线间隔
-    open: f64,                     // 开盘价
-    high: f64,                     // 最高价
-    low: f64,                      // 最低价
-    close: f64,                    // 收盘价
-    volume: f64,                   // 成交量
-    amount: f64,                   // 成交额
-    first_trade_id: i64,           // 第一笔成交ID
-    last_trade_id: i64,            // 最后一笔成交ID
-    trade_count: i64,              // 成交数量
-    is_closed: bool,               // K线是否完结
-    buy_volume: f64,               // 主动买入成交量
-    buy_amount: f64,               // 主动买入成交额
+    interval: String,    // K线间隔
+    open: f64,           // 开盘价
+    high: f64,           // 最高价
+    low: f64,            // 最低价
+    close: f64,          // 收盘价
+    volume: f64,         // 成交量
+    amount: f64,         // 成交额
+    first_trade_id: i64, // 第一笔成交ID
+    last_trade_id: i64,  // 最后一笔成交ID
+    trade_count: i64,    // 成交数量
+    is_closed: bool,     // K线是否完结
+    buy_volume: f64,     // 主动买入成交量
+    buy_amount: f64,     // 主动买入成交额
 }
 
 #[pymethods]
