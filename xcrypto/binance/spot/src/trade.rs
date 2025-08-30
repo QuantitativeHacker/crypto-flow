@@ -148,7 +148,7 @@ impl Trade for SpotTrade {
 
                                 match serde_json::to_string(&order) {
                                     Ok(s) => {
-                                        if let Err(e) = tx.send(Message::Text(s)) {
+                                        if let Err(e) = tx.send(Message::Text(s.into())) {
                                             error!("{}", e);
                                         }
                                     }
@@ -172,7 +172,7 @@ impl Trade for SpotTrade {
 
                             match serde_json::to_string(&order) {
                                 Ok(s) => {
-                                    if let Err(e) = tx.send(Message::Text(s)) {
+                                    if let Err(e) = tx.send(Message::Text(s.into())) {
                                         error!("{}", e);
                                     }
                                 }
@@ -346,7 +346,7 @@ impl Trade for SpotTrade {
             };
 
             debug!("{:?}", response);
-            let rsp = Message::Text(serde_json::to_string(&response)?);
+            let rsp = Message::Text(serde_json::to_string(&response)?.into());
             tx.send(rsp)?;
         }
         Ok(())

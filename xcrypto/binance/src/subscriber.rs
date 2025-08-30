@@ -24,7 +24,7 @@ impl Subscriber {
         if let Some(id) = self.ids.remove(&response.id) {
             response.id = id;
             self.tx
-                .send(Message::Text(serde_json::to_string(&response)?))?;
+                .send(Message::Text(serde_json::to_string(&response)?.into()))?;
         }
         Ok(())
     }
@@ -33,7 +33,7 @@ impl Subscriber {
         if let Some(id) = self.ids.remove(&response.id) {
             response.id = id;
             self.tx
-                .send(Message::Text(serde_json::to_string(&response)?))?;
+                .send(Message::Text(serde_json::to_string(&response)?.into()))?;
         }
         Ok(())
     }
@@ -48,11 +48,11 @@ impl Subscriber {
     }
 
     pub fn forward(&self, data: &String) -> anyhow::Result<()> {
-        self.tx.send(Message::Text(data.clone()))?;
+        self.tx.send(Message::Text(data.clone().into()))?;
         Ok(())
     }
 
-    pub fn iter(&self) -> std::collections::hash_set::Iter<std::string::String> {
+    pub fn iter(&self) -> std::collections::hash_set::Iter<'_, std::string::String> {
         self.symbols.iter()
     }
 }

@@ -3,4 +3,4 @@ pub mod error;
 pub mod parser;
 pub mod position;
 pub mod ws;
-pub use websocket::*;
+pub use tokio_tungstenite::*;

@@ -399,7 +399,7 @@ impl Serialize for BinanceProduct {
                 FilterField::MIN_NOTIONAL { notional } => {
                     state.serialize_field("min_notional", &notional.parse::<f64>().unwrap())?;
                 }
-                FilterField::Unknown => (),
+                _ => (),
             }
         }
         state.end()

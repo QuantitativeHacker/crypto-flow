@@ -53,7 +53,7 @@ impl Market {
         };
         info!("{:?}", req);
         self.ws
-            .send(Message::Text(serde_json::to_string(&req)?))
+            .send(Message::Text(serde_json::to_string(&req)?.into()))
             .await?;
         self.id += 1;
         Ok(())
@@ -72,7 +72,7 @@ impl Market {
         };
 
         info!("{:?}", req);
-        let msg = Message::Text(serde_json::to_string(&req)?);
+        let msg = Message::Text(serde_json::to_string(&req)?.into());
         self.ws.send(msg).await?;
 
         self.requests.insert(req.id, addr.clone());
@@ -94,7 +94,7 @@ impl Market {
             };
 
             debug!("{:?}", response);
-            let rsp = Message::Text(serde_json::to_string(&response)?);
+            let rsp = Message::Text(serde_json::to_string(&response)?.into());
             tx.send(rsp)?;
         }
         Ok(())

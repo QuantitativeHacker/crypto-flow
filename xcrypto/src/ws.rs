@@ -11,7 +11,7 @@ use std::{
 };
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
-use websocket::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
+use tokio_tungstenite::{tungstenite::{self, client::IntoClientRequest as _, Message}, MaybeTlsStream, WebSocketStream};
 
 #[derive(Debug)]
 pub enum Role {
@@ -95,9 +95,9 @@ pub struct WebSocket {
 
 impl WebSocket {
     pub async fn client(addr: &str) -> anyhow::Result<Self> {
-        let addr = url::Url::parse(addr)?;
+        let request = addr.into_client_request()?;
         match tokio::time::timeout(Duration::from_secs(3), async {
-            websocket::connect_async(&addr).await
+            tokio_tungstenite::connect_async(request).await
         })
         .await
         {
@@ -140,7 +140,7 @@ impl WebSocket {
 
             // let peer = peer.to_string();
             info!("Peer address connect: {}", peer);
-            let ws = websocket::accept_async(stream).await?;
+            let ws = tokio_tungstenite::accept_async(stream).await?;
             let (write, read) = ws.split();
 
             return Ok((
@@ -169,7 +169,7 @@ impl WebSocket {
 
     pub async fn close(
         &mut self,
-        msg: Option<websocket::tungstenite::protocol::CloseFrame<'_>>,
+        msg: Option<tungstenite::protocol::CloseFrame>,
     ) -> anyhow::Result<()> {
         if let Role::Client(ws) = &mut self.role {
             ws.close(msg).await?

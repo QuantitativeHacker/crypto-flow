@@ -74,7 +74,7 @@ impl Session {
     fn send<T: Serialize>(&self, data: &T) -> anyhow::Result<()> {
         let msg = serde_json::to_string(data)?;
         if let Some(tx) = &self.tx {
-            return Ok(tx.send(Message::Text(msg))?);
+            return Ok(tx.send(Message::Text(msg.into()))?);
         }
         Ok(())
     }
