@@ -10,6 +10,7 @@ xcrypto/log/*
 ## 敏感配置文件
 xcrypto/private_key.pem
 xcrypto/spot.json
+xcrypto/usdt.json
 
 .venv/
 SWAP-ASiaShanghai-1m-parquet/
