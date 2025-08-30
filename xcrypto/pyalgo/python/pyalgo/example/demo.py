@@ -15,7 +15,7 @@ class Demo:
         # otherwise self.sub.phase is always Phase.UNDEF
         # 设置全天24小时都是开盘阶段（加密货币交易）
         self.sub.add_phase(8, 0, 0, Phase.OPEN)    # 0点开始开盘
-        self.sub.add_phase(16, 0, 0, Phase.CLOSE)  # 注释掉收盘阶段
+        # self.sub.add_phase(16, 0, 0, Phase.CLOSE)  # 注释掉收盘阶段
 
         # 调试：打印阶段设置
         print(f"=== 策略初始化 ===")
