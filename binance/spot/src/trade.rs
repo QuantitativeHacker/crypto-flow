@@ -2,18 +2,18 @@ use crate::rest::Rest;
 use ::serde::Serialize;
 use binance::chat::*;
 use binance::*;
-use log::*;
 use native_json::Deserialize;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
+use tracing::{debug, error, info, warn};
+use tungstenite::Message;
 use xcrypto::chat::*;
-use xcrypto::error::*;
+use xcrypto::error_code::*;
 use xcrypto::parser::Parser;
 use xcrypto::position::PositionDB;
-use tungstenite::Message;
 
 async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, BinanceProduct>> {
     let rsp = rest.get("/api/v3/exchangeInfo", &[], false).await?;

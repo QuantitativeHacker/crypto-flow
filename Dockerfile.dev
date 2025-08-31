@@ -20,14 +20,13 @@ RUN conda config --set solver libmamba && \
     conda clean -a -y
 
 # 开发挂载点（只复制必要文件以利用缓存）
-COPY xcrypto/ /app/xcrypto/
-COPY requirements.txt /app/requirements.txt
+COPY . /app/
 
 # 激活环境并安装/构建 pyo3 扩展
 SHELL ["bash", "-lc"]
 RUN source activate ${ENV_NAME} && \
     python -m pip install -U pip && \
-    cd xcrypto/pyalgo && maturin develop --release
+    cd pyalgo && maturin develop --release
 
 # 默认进入交互 shell，确保环境激活
 CMD ["bash", "-lc", "source activate xcrypto && bash"]

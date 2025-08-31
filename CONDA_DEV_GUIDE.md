@@ -97,12 +97,11 @@ xcrypto/
 ├── environment.yml          # conda环境定义
 ├── requirements.txt         # pip依赖
 ├── run_xcrypto.sh          # 一键运行脚本
-└── xcrypto/
-    ├── spot.json           # 配置文件
-    ├── private_key.pem     # 私钥文件
-    ├── binance/            # Rust代码
-    ├── pyalgo/             # Python扩展
-    └── target/             # 编译输出
+├── spot.json           # 配置文件
+├── private_key.pem     # 私钥文件
+├── binance/            # Rust代码
+├── pyalgo/             # Python扩展
+└── target/             # 编译输出
 ```
 
 ## 🔍 调试和开发技巧

@@ -4,7 +4,6 @@ set -euo pipefail
 # 一键运行策略脚本 - 支持Docker容器和本地conda环境
 # 使用方法:
 #   ./run_strategy.sh safe_demo.py                 # 运行安全演示策略
-#   ./run_strategy.sh small_trade_demo.py          # 运行小额交易策略  
 #   ./run_strategy.sh compare_factors.py --help    # 带参数运行任意脚本
 #   ./run_strategy.sh --local safe_demo.py         # 强制使用本地环境
 #   ./run_strategy.sh --docker safe_demo.py        # 强制使用Docker环境
@@ -39,7 +38,7 @@ while [[ $# -gt 0 ]]; do
       echo "示例:"
       echo "  $0 safe_demo.py"
       echo "  $0 --local kline.py"
-      echo "  $0 xcrypto/pyalgo/python/pyalgo/example/kline.py"
+      echo "  $0 pyalgo/python/pyalgo/example/kline.py"
       exit 0
       ;;
     *)

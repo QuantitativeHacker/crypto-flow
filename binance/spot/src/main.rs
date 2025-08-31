@@ -3,11 +3,11 @@ mod trade;
 use crate::rest::Rest;
 use binance::*;
 use clap::Parser;
-use log::{error, info};
-use logger::*;
 use serde::Deserialize;
 use std::sync::Arc;
+use tracing::{error, info};
 use trade::SpotTrade;
+use xcrypto::init_tracing;
 
 #[derive(Debug, Deserialize)]
 struct Config {
@@ -22,8 +22,8 @@ struct Config {
 struct Args {
     #[arg(short, long, help = "Config path")]
     config: String,
-    #[arg(short, long, default_value_t = Level::Info)]
-    level: Level,
+    #[arg(short, long, default_value_t = tracing::Level::INFO)]
+    level: tracing::Level,
 }
 
 impl Args {
@@ -46,7 +46,7 @@ async fn main() -> anyhow::Result<()> {
         None => "unknown".into(),
     };
 
-    let _logger = init(Some(format!("log/{}", filename)), args.level);
+    let _guard = init_tracing(&filename, "log", &args.level.to_string().to_lowercase())?;
 
     let app = Application::new(&config.local).await?;
     let market = Market::new("wss://stream.binance.com:9443/ws".into()).await?;

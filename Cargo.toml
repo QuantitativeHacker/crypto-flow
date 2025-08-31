@@ -8,7 +8,6 @@ members = [
     "binance",
     "binance/spot",
     "binance/usdt",
-    "logger",
     "pyalgo",
 ] 
 
@@ -29,9 +28,11 @@ tokio = { version = "1.37.0", features = ["full"] }
 tokio-tungstenite = { version = "0.27.0", features = [
     "native-tls",
 ] }
+tracing = { version = "0.1.41" }
+tracing-subscriber = { version = "0.3.20", features = ["env-filter", "json"] }
+tracing-appender = { version = "0.2.2" }
 tungstenite  = { version = "0.27.0" }
 url = "2.5.0"
-logger = { path = "logger" }
 
 
 
@@ -45,6 +46,8 @@ tokio = { workspace = true}
 url = { workspace = true }
 tokio-tungstenite = {workspace = true }
 native-json = {workspace = true}
-logger = { path = "logger" }
 serde_json = {workspace = true}
 sqlx = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-appender = { workspace = true }

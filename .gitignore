@@ -1,16 +1,11 @@
-**/target
-**/*.db
+target
 *.db
 **/algo
 
 # log文件
 log/*
-xcrypto/log/*
 
 ## 敏感配置文件
-xcrypto/private_key.pem
-xcrypto/spot.json
-xcrypto/usdt.json
-
-.venv/
-SWAP-ASiaShanghai-1m-parquet/
+private_key.pem
+spot.json
+usdt.json

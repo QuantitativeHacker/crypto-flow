@@ -1,7 +1,6 @@
 use crate::rest::Rest;
 use binance::chat::*;
 use binance::*;
-use log::*;
 use native_json::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -9,9 +8,11 @@ use std::fmt::Debug;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
+use tracing::{debug, error, info, warn};
 use tungstenite::Message;
 use xcrypto::chat::*;
-use xcrypto::error::*;
+use xcrypto::error_code;
+use xcrypto::error_code::DUPLICATE_LOGIN;
 use xcrypto::parser::Parser;
 use xcrypto::position::PositionDB;
 
@@ -253,20 +254,20 @@ impl Trade for UsdtTrade {
                 Some((name, stream)) => {
                     if !self.products.contains_key(name) {
                         return Some(Error {
-                            code: INVALID_SYMBOL,
+                            code: error_code::INVALID_SYMBOL,
                             msg: format!("invalid symbol {}", symbol),
                         });
                     }
                     if !self.validate_symbol(name, stream) {
                         return Some(Error {
-                            code: INVALID_STREAM,
+                            code: error_code::INVALID_STREAM,
                             msg: format!("invalid stream {}", symbol),
                         });
                     }
                 }
                 None => {
                     return Some(Error {
-                        code: INVALID_SYMBOL,
+                        code: error_code::INVALID_SYMBOL,
                         msg: format!("invalid symbol {}", symbol),
                     });
                 }
@@ -306,7 +307,7 @@ impl Trade for UsdtTrade {
                 addr,
                 i64::deserialize(id)?,
                 Error {
-                    code: DISCONNECTED,
+                    code: error_code::DISCONNECTED,
                     msg: "trade disconnected".into(),
                 },
             )?;

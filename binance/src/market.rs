@@ -1,16 +1,15 @@
 use crate::chat::Event;
 use crate::{BinanceQuote, MarketStream, Subscriber, Trade};
-use log::*;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::{collections::HashMap, fmt::Debug};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::time::{Duration, Instant};
+use tracing::{debug, error, info};
 use tungstenite::Message;
 use xcrypto::parser::Parser;
 use xcrypto::ws::WebSocket;
-use xcrypto::{chat::*, error::*};
-
+use xcrypto::{chat::*, error_code::*};
 pub struct Market {
     addr: String,
     txs: HashMap<SocketAddr, UnboundedSender<Message>>,

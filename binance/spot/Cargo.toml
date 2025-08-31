@@ -14,9 +14,8 @@ native-json.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
+tracing.workspace = true
 tungstenite.workspace = true
 url.workspace = true
 binance = {path ="../"}
 xcrypto = {path ="../../"}
-logger = {path ="../../logger"}
-

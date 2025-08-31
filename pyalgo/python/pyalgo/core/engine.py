@@ -1,4 +1,3 @@
-from pyalgo import init_logger
 from .context import Context
 from typing import Dict, Tuple
 from time import sleep
@@ -12,7 +11,6 @@ class Engine:
 
     def __init__(self, interval: float, level: str = "info"):
         self.APPNAME = Path(sys.argv[0]).stem
-        self.logger = init_logger(level, f"log/{self.APPNAME}")
         self.interval = interval
 
         self.contexts: Dict[Tuple[str, int], Context] = {}

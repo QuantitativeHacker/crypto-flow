@@ -5,21 +5,24 @@ set -euo pipefail
 # 默认：使用Docker容器隔离环境（推荐）
 # 备选：使用本地miniconda环境
 # 用法:
-#   ./run_xcrypto.sh [spot|usdt] [--setup|--docker|--local]
+#   ./run_xcrypto.sh [spot|usdt] [--setup|--docker|--local|-f]
 # 示例:
 #   ./run_xcrypto.sh                    # 默认spot模式，自动选择Docker或本地
 #   ./run_xcrypto.sh usdt               # USDT期货模式
 #   ./run_xcrypto.sh spot --setup       # 配置本地miniconda环境
 #   ./run_xcrypto.sh spot --docker      # 强制使用Docker
 #   ./run_xcrypto.sh spot --local       # 强制使用本地环境
+#   ./run_xcrypto.sh spot -f            # 强制重新构建Docker镜像并运行
+#   ./run_xcrypto.sh usdt --docker -f   # USDT模式，强制重新构建
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$SCRIPT_DIR/xcrypto"
+PROJECT_ROOT="$SCRIPT_DIR"
 WORKSPACE_DIR="$PROJECT_ROOT"
 
 # 解析参数
 MODE="spot"
 FORCE_MODE=""
+FORCE_REBUILD=false
 
 for arg in "$@"; do
   case $arg in
@@ -35,9 +38,12 @@ for arg in "$@"; do
     --local)
       FORCE_MODE="local"
       ;;
+    -f|--force)
+      FORCE_REBUILD=true
+      ;;
     --help|-h)
       echo "xcrypto 一键运行脚本"
-      echo "用法: $0 [spot|usdt] [--setup|--docker|--local|--help]"
+      echo "用法: $0 [spot|usdt] [--setup|--docker|--local|-f|--help]"
       echo ""
       echo "模式:"
       echo "  spot    现货交易模式 (默认)"
@@ -47,6 +53,7 @@ for arg in "$@"; do
       echo "  --setup   配置本地miniconda环境"
       echo "  --docker  强制使用Docker容器"
       echo "  --local   强制使用本地miniconda环境"
+      echo "  -f, --force  强制重新构建Docker镜像"
       echo "  --help    显示此帮助信息"
       exit 0
       ;;
@@ -137,18 +144,34 @@ setup_local_environment() {
 run_in_docker() {
   echo "[信息] 使用Docker容器运行 (推荐，环境隔离)"
   
-  # 检查Docker镜像是否存在，如果不存在则构建
   IMAGE_NAME="xcrypto-dev:latest"
+  
+  # 检查是否需要强制重新构建
+  if [[ "$FORCE_REBUILD" == true ]]; then
+    echo "[信息] 强制重新构建Docker镜像..."
+    # 删除现有镜像（如果存在）
+    if docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
+      echo "[信息] 删除现有镜像..."
+      docker rmi "$IMAGE_NAME" || true
+    fi
+  fi
+  
+  # 检查Docker镜像是否存在，如果不存在则构建
   if ! docker image inspect "$IMAGE_NAME" >/dev/null 2>&1; then
     echo "[信息] Docker镜像不存在，正在构建..."
     if [[ ! -f "$SCRIPT_DIR/Dockerfile.dev" ]]; then
       echo "[错误] 未找到Dockerfile.dev: $SCRIPT_DIR/Dockerfile.dev"
       exit 1
     fi
+    
+    echo "[信息] 开始构建Docker镜像，这可能需要几分钟..."
     docker build -f "$SCRIPT_DIR/Dockerfile.dev" -t "$IMAGE_NAME" "$SCRIPT_DIR" || {
       echo "[错误] Docker镜像构建失败"
       exit 1
     }
+    echo "[成功] Docker镜像构建完成!"
+  elif [[ "$FORCE_REBUILD" != true ]]; then
+    echo "[信息] 使用现有Docker镜像 (使用 -f 强制重新构建)"
   fi
   
   echo "[信息] 启动Docker容器，端口映射 8111:8111"
@@ -157,7 +180,7 @@ run_in_docker() {
     -p 8111:8111 \
     -v "$SCRIPT_DIR":/app \
     -v xcrypto-cargo-cache:/usr/local/cargo/registry \
-    -v xcrypto-target-cache:/app/xcrypto/target \
+    -v xcrypto-target-cache:/app/target \
     -w /app \
     "$IMAGE_NAME" \
     bash -c "set -e; \
@@ -165,13 +188,13 @@ run_in_docker() {
       echo '[信息] 使用conda环境: $ENV_NAME'; \
       conda info --envs; \
       # 构建Rust二进制文件
-      cd xcrypto/binance/$MODE && cargo build -r; \
+      cd binance/$MODE && cargo build -r; \
       # 构建Python策略包
       cd ../pyalgo && maturin develop -r; \
       # 安装Python依赖
       python -m pip install -r /app/requirements.txt || true; \
       # 从项目根目录运行，以便发现配置文件
-      cd /app/xcrypto && \
+      cd /app && \
       echo '[信息] 启动 $MODE 服务器，地址: ws://localhost:8111' && \
       ./target/release/$MODE -c=$CONFIG_BASENAME -l=info"
 }
@@ -218,24 +241,24 @@ run_locally() {
 
   # 构建Rust二进制文件
   echo "[信息] 构建Rust二进制文件..."
-  pushd "$WORKSPACE_DIR/binance/$MODE" >/dev/null
+  pushd "$PROJECT_ROOT/binance/$MODE" >/dev/null
   cargo build -r
   popd >/dev/null
 
   # 构建Python策略包
   echo "[信息] 构建Python策略包..."
-  pushd "$WORKSPACE_DIR/pyalgo" >/dev/null
+  pushd "$PROJECT_ROOT/pyalgo" >/dev/null
   python -m pip install --upgrade pip
   maturin develop -r
   # 安装Python依赖
-  if [[ -f "$SCRIPT_DIR/requirements.txt" ]]; then
-    python -m pip install -r "$SCRIPT_DIR/requirements.txt" || true
+  if [[ -f "$PROJECT_ROOT/requirements.txt" ]]; then
+    python -m pip install -r "$PROJECT_ROOT/requirements.txt" || true
   fi
   popd >/dev/null
 
   # 从项目根目录运行，确保private_key.pem路径正确
   echo "[信息] 启动 $MODE 服务器，地址: ws://localhost:8111"
-  cd "$WORKSPACE_DIR"
+  cd "$PROJECT_ROOT"
   "./target/release/$MODE" -c="$CONFIG_BASENAME" -l=info
 }
 
