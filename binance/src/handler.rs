@@ -13,7 +13,7 @@ use tokio::time::Duration;
 use tungstenite::Message;
 use xcrypto::chat::{Login, PositionReq, PositionRsp, Request};
 use xcrypto::parser::Parser;
-use xcrypto::ws::Connection;
+use websocket::Connection;
 
 pub struct Handler {
     channels: HashMap<SocketAddr, (UnboundedSender<Message>, UnboundedReceiver<Message>)>,

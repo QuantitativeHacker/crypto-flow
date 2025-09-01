@@ -7,7 +7,7 @@ use std::time::Duration;
 use std::time::Instant;
 use tungstenite::Message;
 use url::Url;
-use xcrypto::ws::WebSocket;
+use websocket::WebSocket;
 
 async fn fetch_listen_key<T: DeserializeOwned>(rest: &Arc<Rest>, api: &str) -> anyhow::Result<T> {
     let rsp = rest.post(api, &[], false).await?;
@@ -41,7 +41,7 @@ where
         let addr = format!("{}/{}", Url::parse(addr)?.as_str(), listenkey.key());
 
         info!("Account Websocket: {:?}", addr);
-        let ws = WebSocket::client(addr.as_str()).await?;
+        let ws = WebSocket::create_client(addr.as_str()).await?;
         Ok(Self {
             addr: addr.into(),
             api: api.into(),
@@ -98,7 +98,7 @@ where
             );
             info!("Reconnecting to {}", addr);
 
-            match WebSocket::client(addr.as_str()).await {
+            match WebSocket::create_client(addr.as_str()).await {
                 Ok(ws) => {
                     self.ws = ws;
                     self.disconnected = false;

@@ -22,3 +22,4 @@ tracing.workspace = true
 tungstenite.workspace = true
 url.workspace = true
 xcrypto = {path = "../"}
+websocket = {path = "../websocket"}

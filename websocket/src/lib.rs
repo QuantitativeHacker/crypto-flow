@@ -2,7 +2,8 @@ use futures_util::{
     stream::{FusedStream, SplitSink, SplitStream},
     SinkExt, StreamExt, TryStreamExt,
 };
-use log::*;
+use tracing::{debug, error, info};
+use url::Url;
 use std::{
     fmt::{Debug, Display},
     marker::PhantomData,
@@ -97,7 +98,7 @@ pub struct WebSocket {
 }
 
 impl WebSocket {
-    pub async fn client(addr: &str) -> anyhow::Result<Self> {
+    pub async fn create_client(addr: &str) -> anyhow::Result<Self> {
         let request = addr.into_client_request()?;
         match tokio::time::timeout(Duration::from_secs(3), async {
             tokio_tungstenite::connect_async(request).await
@@ -118,8 +119,8 @@ impl WebSocket {
         };
     }
 
-    pub async fn server(addr: &str) -> anyhow::Result<Self> {
-        let addr = url::Url::parse(addr)?;
+    pub async fn create_server(addr: &str) -> anyhow::Result<Self> {
+        let addr = Url::parse(addr)?;
         let listener = TcpListener::bind(format!(
             "{}:{}",
             addr.host_str().expect("Invalid host"),
