@@ -7,8 +7,8 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::time::{Duration, Instant};
 use tracing::{debug, error, info};
 use tungstenite::Message;
+use websocket::WebSocketClient;
 use xcrypto::parser::Parser;
-use websocket::WebSocket;
 use xcrypto::{chat::*, error_code::*};
 pub struct Market {
     addr: String,
@@ -16,7 +16,7 @@ pub struct Market {
     subscribers: HashMap<SocketAddr, Subscriber>,
     symbols: HashMap<String, u16>,
     requests: HashMap<i64, SocketAddr>,
-    ws: WebSocket,
+    ws: WebSocketClient,
     disconnected: bool,
     id: i64,
     time: Instant,
@@ -24,7 +24,7 @@ pub struct Market {
 
 impl Market {
     pub async fn new(addr: String) -> anyhow::Result<Self> {
-        let mut ws = WebSocket::create_client(&addr).await?;
+        let mut ws = WebSocketClient::new(&addr).await?;
         let combined = r#"{"method": "SET_PROPERTY","params": ["combined", true],"id": 0}"#;
         ws.send(Message::text(combined.to_string())).await?;
 
@@ -109,7 +109,7 @@ impl Market {
             info!("Reconnecting to {}", self.addr);
             self.time = Instant::now();
 
-            match WebSocket::create_client(&self.addr).await {
+            match WebSocketClient::new(&self.addr).await {
                 Ok(mut ws) => {
                     let combined = format!(
                         r#"{{"method": "SET_PROPERTY","params": ["combined", true],"id":{}}}"#,

@@ -6,16 +6,16 @@ use log::*;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 use tokio::sync::oneshot;
 use tungstenite::Message;
-use websocket::{Connection, TcpStreamReceiver, TcpStreamSender, WebSocket};
+use websocket::{Connection, TcpStreamReceiver, TcpStreamSender, WebSocketServer};
 
 pub struct Application {
-    listener: WebSocket,
+    listener: WebSocketServer,
 }
 
 impl Application {
     pub async fn new(local: &str) -> anyhow::Result<Self> {
         info!("-------------------- Start --------------------");
-        let listener = WebSocket::create_server(local).await?;
+        let listener = WebSocketServer::new(local).await?;
         Ok(Self { listener })
     }
 

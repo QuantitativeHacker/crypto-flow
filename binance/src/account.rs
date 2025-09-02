@@ -7,7 +7,7 @@ use std::time::Duration;
 use std::time::Instant;
 use tungstenite::Message;
 use url::Url;
-use websocket::WebSocket;
+use websocket::WebSocketClient;
 
 async fn fetch_listen_key<T: DeserializeOwned>(rest: &Arc<Rest>, api: &str) -> anyhow::Result<T> {
     let rsp = rest.post(api, &[], false).await?;
@@ -25,7 +25,7 @@ async fn ping(rest: Arc<Rest>, api: String) -> anyhow::Result<()> {
 pub struct Account<T: ListenKey + DeserializeOwned> {
     addr: String,
     api: String,
-    ws: WebSocket,
+    ws: WebSocketClient,
     time: Instant,
     disconnected: bool,
     rest: Arc<Rest>,
@@ -41,7 +41,7 @@ where
         let addr = format!("{}/{}", Url::parse(addr)?.as_str(), listenkey.key());
 
         info!("Account Websocket: {:?}", addr);
-        let ws = WebSocket::create_client(addr.as_str()).await?;
+        let ws = WebSocketClient::new(addr.as_str()).await?;
         Ok(Self {
             addr: addr.into(),
             api: api.into(),
@@ -98,7 +98,7 @@ where
             );
             info!("Reconnecting to {}", addr);
 
-            match WebSocket::create_client(addr.as_str()).await {
+            match WebSocketClient::new(addr.as_str()).await {
                 Ok(ws) => {
                     self.ws = ws;
                     self.disconnected = false;
