@@ -2889,6 +2889,7 @@ dependencies = [
  "tracing",
  "tungstenite",
  "url 2.5.7",
+ "websocket 0.1.0",
  "xcrypto",
 ]
 

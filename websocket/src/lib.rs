@@ -12,9 +12,13 @@ pub use server::WebSocketServer;
 pub use server::{Connection, TcpStreamReceiver, TcpStreamSender};
 
 pub use crate::client::WebsocketClient;
-pub use crate::exchange::{BinanceProtocol, OkxProtocol};
+pub use crate::exchange::{BinanceProtocol, BinanceWsApiProtocol, OkxProtocol};
 
-/// 为了兼容现有调用，保留 OkxWebsocketClient 名称作为泛型别名
+pub use crate::auth::Credentials;
+
+/// Okx websocket client
 pub type OkxWebsocketClient = WebsocketClient<OkxProtocol>;
-/// 为了兼容现有调用，提供 Binance 客户端别名
+/// Binance websocket client
 pub type BinanceWebsocketClient = WebsocketClient<BinanceProtocol>;
+/// Binance WS-API websocket client
+pub type BinanceWsApiWebsocketClient = WebsocketClient<BinanceWsApiProtocol>;

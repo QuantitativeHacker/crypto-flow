@@ -7,6 +7,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use tracing::{error, info};
 use trade::SpotTrade;
+use websocket::Credentials;
 use xcrypto::init_tracing;
 
 #[derive(Debug, Deserialize)]
@@ -57,19 +58,20 @@ async fn main() -> anyhow::Result<()> {
         &config.pem,
         3000,
     )?);
+    let credentials = Credentials::new(config.apikey, config.pem, "".to_string(), "0");
 
     let account = if config.margin {
-        Account::<SpotListenKey>::new(
+        Account::new(
             "wss://stream.binance.com:9443/ws",
             "/sapi/v1/userDataStream",
-            rest.clone(),
+            credentials,
         )
         .await?
     } else {
-        Account::<SpotListenKey>::new(
+        Account::new(
             "wss://stream.binance.com:9443/ws",
             "/api/v3/userDataStream",
-            rest.clone(),
+            credentials,
         )
         .await?
     };
