@@ -1,13 +1,15 @@
 use crate::chat::Event;
 use crate::{BinanceQuote, MarketStream, Subscriber, Trade};
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 use std::net::SocketAddr;
 use std::{collections::HashMap, fmt::Debug};
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::time::{Duration, Instant};
 use tracing::{debug, error, info};
 use tungstenite::Message;
-use websocket::WebSocketClient;
+use websocket::channel::{Args as WsArgs, ChannelType};
+use websocket::{BinanceProtocol, WebsocketClient};
 use xcrypto::parser::Parser;
 use xcrypto::{chat::*, error_code::*};
 pub struct Market {
@@ -16,7 +18,8 @@ pub struct Market {
     subscribers: HashMap<SocketAddr, Subscriber>,
     symbols: HashMap<String, u16>,
     requests: HashMap<i64, SocketAddr>,
-    ws: WebSocketClient,
+    client: WebsocketClient<BinanceProtocol>,
+    rx: Option<tokio::sync::mpsc::Receiver<Value>>,
     disconnected: bool,
     id: i64,
     time: Instant,
@@ -24,9 +27,13 @@ pub struct Market {
 
 impl Market {
     pub async fn new(addr: String) -> anyhow::Result<Self> {
-        let mut ws = WebSocketClient::new(&addr).await?;
-        let combined = r#"{"method": "SET_PROPERTY","params": ["combined", true],"id": 0}"#;
-        ws.send(Message::text(combined.to_string())).await?;
+        let mut client = WebsocketClient::<BinanceProtocol>::new_public();
+        client.set_url(addr.as_str());
+        let rx = client.connect().await?;
+        // 开启 combined 模式，便于沿用现有解析
+        client
+            .wsapi_call("SET_PROPERTY", serde_json::json!(["combined", true]), 0)
+            .await?;
 
         Ok(Self {
             addr,
@@ -34,7 +41,8 @@ impl Market {
             subscribers: HashMap::default(),
             symbols: HashMap::default(),
             requests: HashMap::default(),
-            ws,
+            client,
+            rx: Some(rx),
             disconnected: false,
             id: 1,
             time: Instant::now(),
@@ -46,16 +54,37 @@ impl Market {
     }
 
     async fn subscribe(&mut self, symbols: Vec<String>) -> anyhow::Result<()> {
-        let req: Request<Vec<String>> = Request {
-            id: self.id,
-            method: "SUBSCRIBE".into(),
-            params: symbols,
-        };
-        info!("{:?}", req);
-        self.ws
-            .send(Message::Text(serde_json::to_string(&req)?.into()))
-            .await?;
-        self.id += 1;
+        info!("subscribe symbols: {:?}", symbols);
+        for s in symbols {
+            // 将内部风格转换为 Binance stream 格式
+            // 输入可能是 "btcusdt@kline_1m" 或 "ethusdt@bookTicker" 或 "bnbusdt@depth20:@100ms"
+            if s.contains("@kline_") {
+                // kline
+                let (symbol, period) = s.split_once("@kline_").unwrap();
+                let args = WsArgs::new().with_inst_id(symbol.to_string());
+                self.client
+                    .subscribe(ChannelType::Candle(period.to_string()), args)
+                    .await?;
+            } else if s.ends_with("@bookTicker") {
+                let symbol = s.trim_end_matches("@bookTicker");
+                let args = WsArgs::new().with_inst_id(symbol.to_string());
+                self.client.subscribe(ChannelType::Books, args).await?;
+            } else if s.starts_with("depth") || s.contains("@depth") {
+                // 简化处理：统一用 Depth 标准频道
+                let symbol = s.split('@').next().unwrap_or(&s);
+                let args = WsArgs::new().with_inst_id(symbol.to_string());
+                self.client.subscribe(ChannelType::Depth, args).await?;
+            } else if s.ends_with("@ticker") {
+                let symbol = s.trim_end_matches("@ticker");
+                let args = WsArgs::new().with_inst_id(symbol.to_string());
+                self.client.subscribe(ChannelType::Tickers, args).await?;
+            } else {
+                // 兜底：按 ticker 处理
+                let symbol = s.split('@').next().unwrap_or(&s);
+                let args = WsArgs::new().with_inst_id(symbol.to_string());
+                self.client.subscribe(ChannelType::Tickers, args).await?;
+            }
+        }
         Ok(())
     }
 
@@ -72,8 +101,9 @@ impl Market {
         };
 
         info!("{:?}", req);
-        let msg = Message::Text(serde_json::to_string(&req)?.into());
-        self.ws.send(msg).await?;
+        self.client
+            .wsapi_call(&req.method, serde_json::to_value(&req.params)?, req.id)
+            .await?;
 
         self.requests.insert(req.id, addr.clone());
         self.id += 1;
@@ -100,66 +130,27 @@ impl Market {
         Ok(())
     }
 
-    pub async fn reconncet<T: Trade>(&mut self, trade: &mut T) -> anyhow::Result<()> {
-        if !self.disconnected {
-            return Ok(());
-        }
-
-        if self.time.elapsed() >= Duration::from_secs(30) {
-            info!("Reconnecting to {}", self.addr);
-            self.time = Instant::now();
-
-            match WebSocketClient::new(&self.addr).await {
-                Ok(mut ws) => {
-                    let combined = format!(
-                        r#"{{"method": "SET_PROPERTY","params": ["combined", true],"id":{}}}"#,
-                        self.id
-                    );
-
-                    self.id += 1;
-
-                    ws.send(Message::text(combined.to_string())).await?;
-
-                    self.ws = ws;
-                    self.disconnected = false;
-
-                    // re-subscribe
-                    if !self.symbols.is_empty() {
-                        let symbols: Vec<_> = self
-                            .symbols
-                            .keys()
-                            .cloned()
-                            .map(|x| x.replace(":", "_"))
-                            .collect();
-                        self.subscribe(symbols).await?;
-                    }
-                    trade.get_products().await?
-                }
-                Err(e) => error!("{}", e),
-            }
-        }
-        // release cpu
+    pub async fn reconncet<T: Trade>(&mut self, _trade: &mut T) -> anyhow::Result<()> {
+        // 已使用客户端自动重连与订阅持久化，此函数降级为空实现
         tokio::time::sleep(Duration::ZERO).await;
         Ok(())
     }
 
     pub async fn process(&mut self) -> anyhow::Result<bool> {
-        match self.ws.recv().await? {
-            Some(inner) => match &inner {
-                Message::Text(s) => match serde_json::from_str::<Event>(s) {
-                    Ok(e) => self.handle_event(e),
-                    Err(e) => error!("{} {}", e, inner),
-                },
-                Message::Ping(ping) => {
-                    debug!("{:?}", inner);
-                    self.ws.send(Message::Pong(ping.to_owned())).await?;
+        if let Some(rx) = self.rx.as_mut() {
+            match rx.recv().await {
+                Some(value) => {
+                    // 直接从 JSON 反序列化 Event
+                    match serde_json::from_value::<Event>(value) {
+                        Ok(e) => self.handle_event(e),
+                        Err(e) => error!("{}", e),
+                    }
                 }
-                _ => (),
-            },
-            None => {
-                if !self.disconnected {
-                    error!("market disconnected");
-                    self.disconnected = true
+                None => {
+                    if !self.disconnected {
+                        error!("market disconnected");
+                        self.disconnected = true
+                    }
                 }
             }
         }

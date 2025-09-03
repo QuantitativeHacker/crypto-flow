@@ -1,6 +1,6 @@
 use crate::auth::{Credentials, OkxWsAuth, OkxWsLoginRequest};
 use crate::channel::{Args, ChannelType};
-use crate::client_::StoredSub;
+use crate::client::StoredSub;
 use crate::request::{BinanceWsRequest, OkxSubscription, OkxWsOperation, OkxWsRequest};
 
 /// 协议策略：定义各交易所 WS 消息格式

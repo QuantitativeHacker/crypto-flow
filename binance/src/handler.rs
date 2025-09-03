@@ -11,25 +11,27 @@ use tokio::signal::windows::{ctrl_break, ctrl_c};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::time::Duration;
 use tungstenite::Message;
+use websocket::Connection;
 use xcrypto::chat::{Login, PositionReq, PositionRsp, Request};
 use xcrypto::parser::Parser;
-use websocket::Connection;
 
 pub struct Handler {
-    channels: HashMap<SocketAddr, (UnboundedSender<Message>, UnboundedReceiver<Message>)>,
+    // Python 策略客户端连接：addr -> (to_client_tx, from_client_rx)
+    client_channels: HashMap<SocketAddr, (UnboundedSender<Message>, UnboundedReceiver<Message>)>,
     keep_running: bool,
 }
 
 impl Handler {
     pub fn new() -> Self {
         Self {
-            channels: HashMap::default(),
+            client_channels: HashMap::default(),
             keep_running: false,
         }
     }
 
-    fn on_message(&mut self, addr: &SocketAddr, msg: &Message) -> Option<Parser> {
-        if let Some((tx, _)) = self.channels.get_mut(addr) {
+    // 解析来自策略客户端的消息，处理 Ping 并返回 Parser
+    fn parse_client_message(&mut self, addr: &SocketAddr, msg: &Message) -> Option<Parser> {
+        if let Some((tx, _)) = self.client_channels.get_mut(addr) {
             match &msg {
                 Message::Ping(ping) => {
                     if let Err(e) = tx.send(Message::Pong(ping.to_owned())) {
@@ -53,21 +55,22 @@ impl Handler {
         None
     }
 
-    fn on_connect(&mut self, connection: Connection, market: &mut Market) {
+    // 新的策略客户端连接接入
+    fn on_client_connect(&mut self, connection: Connection, market: &mut Market) {
         let (addr, tx, rx) = connection;
 
         market.handle_connect(&addr, &tx);
-        self.channels.insert(addr.clone(), (tx.clone(), rx));
+        self.client_channels.insert(addr.clone(), (tx.clone(), rx));
     }
 
-    async fn handle_login<T: Trade>(
+    async fn handle_client_login<T: Trade>(
         &mut self,
         addr: &SocketAddr,
         parser: &Parser,
         market: &mut Market,
         trade: &mut T,
     ) -> anyhow::Result<()> {
-        if let Some((tx, _)) = self.channels.get(addr) {
+        if let Some((tx, _)) = self.client_channels.get(addr) {
             let req = parser.decode::<Request<Login>>()?;
             info!("{:?}", req);
 
@@ -85,7 +88,7 @@ impl Handler {
         Ok(())
     }
 
-    async fn handle_subscribe<T: Trade>(
+    async fn handle_client_subscribe<T: Trade>(
         &mut self,
         addr: &SocketAddr,
         parser: &Parser,
@@ -102,7 +105,7 @@ impl Handler {
         Ok(())
     }
 
-    fn handle_get_products<T: Trade>(
+    fn handle_client_get_products<T: Trade>(
         &mut self,
         addr: &SocketAddr,
         parser: &Parser,
@@ -127,7 +130,7 @@ impl Handler {
         Ok(())
     }
 
-    fn handle_get_positions<T: Trade>(
+    fn handle_client_get_positions<T: Trade>(
         &self,
         addr: &SocketAddr,
         parser: &Parser,
@@ -177,7 +180,7 @@ impl Handler {
     }
 
     #[allow(unused)]
-    async fn handle_order<T: Trade>(
+    async fn handle_client_order<T: Trade>(
         &mut self,
         addr: &SocketAddr,
         parser: &Parser,
@@ -191,7 +194,7 @@ impl Handler {
     }
 
     #[allow(unused)]
-    async fn handle_cancel<T: Trade>(
+    async fn handle_client_cancel<T: Trade>(
         &mut self,
         addr: &SocketAddr,
         parser: &Parser,
@@ -204,7 +207,8 @@ impl Handler {
         trade.cancel(addr, &req.params)
     }
 
-    async fn handle_request<T: Trade>(
+    // 将策略客户端的请求分发给 market / trade
+    async fn dispatch_client_request<T: Trade>(
         &mut self,
         addr: &SocketAddr,
         parser: Parser,
@@ -222,12 +226,28 @@ impl Handler {
         if let Some(val) = parser.get("method") {
             if let Some(method) = val.as_str() {
                 match method {
-                    "login" => self.handle_login(addr, &parser, market, trade).await?,
-                    "subscribe" => self.handle_subscribe(addr, &parser, market, trade).await?,
-                    "get_products" => self.handle_get_products(addr, &parser, market, trade)?,
-                    "get_positions" => self.handle_get_positions(addr, &parser, market, trade)?,
-                    "order" => self.handle_order(addr, &parser, market, trade).await?,
-                    "cancel" => self.handle_cancel(addr, &parser, market, trade).await?,
+                    "login" => {
+                        self.handle_client_login(addr, &parser, market, trade)
+                            .await?
+                    }
+                    "subscribe" => {
+                        self.handle_client_subscribe(addr, &parser, market, trade)
+                            .await?
+                    }
+                    "get_products" => {
+                        self.handle_client_get_products(addr, &parser, market, trade)?
+                    }
+                    "get_positions" => {
+                        self.handle_client_get_positions(addr, &parser, market, trade)?
+                    }
+                    "order" => {
+                        self.handle_client_order(addr, &parser, market, trade)
+                            .await?
+                    }
+                    "cancel" => {
+                        self.handle_client_cancel(addr, &parser, market, trade)
+                            .await?
+                    }
                     _ => (),
                 }
             }
@@ -235,9 +255,10 @@ impl Handler {
         Ok(())
     }
 
+    // 主循环：接入策略客户端，处理交易所数据与策略请求
     pub async fn process<T: Trade>(
         &mut self,
-        mut rx: UnboundedReceiver<Connection>,
+        mut client_conn_rx: UnboundedReceiver<Connection>,
         market: &mut Market,
         trade: &mut T,
     ) -> anyhow::Result<()> {
@@ -253,17 +274,10 @@ impl Handler {
 
         while self.keep_running {
             tokio::select! {
-               Some(connection) = rx.recv() => self.on_connect(connection,market),
+               Some(connection) = client_conn_rx.recv() => self.on_client_connect(connection,market),
                res = market.process() => {
-                    match res {
-                        Ok(_) => {
-                            if let Err(e) = market.reconncet(trade).await {
-                                error!("{}", e);
-                            }
-                        }
-                        Err(e) => {
-                            error!("{}", e);
-                        }
+                    if let Err(e) = res {
+                        error!("{}", e);
                     }
                },
                Some(_) = interrupt.recv() => self.stop(),
@@ -274,22 +288,15 @@ impl Handler {
             // avoid two mutable borrow of trade
             tokio::select! {
                 res = trade.process() => {
-                    match res {
-                        Ok(_) => {
-                            if let Err(e) = trade.reconncet().await {
-                                error!("{}", e);
-                            }
-                        }
-                        Err(e) => {
-                            error!("{}", e);
-                        }
+                    if let Err(e) = res {
+                        error!("{}", e);
                     }
                 },
                 _ = tokio::time::sleep(Duration::ZERO) => ()
             }
 
             let list: Vec<_> = self
-                .channels
+                .client_channels
                 .iter_mut()
                 .map(|(addr, (_, rx))| (addr.clone(), rx.try_recv(), rx.is_closed()))
                 .collect();
@@ -303,8 +310,10 @@ impl Handler {
                             }
                         }
                         _ => {
-                            if let Some(req) = self.on_message(&addr, msg) {
-                                if let Err(e) = self.handle_request(&addr, req, market, trade).await
+                            if let Some(req) = self.parse_client_message(&addr, msg) {
+                                if let Err(e) = self
+                                    .dispatch_client_request(&addr, req, market, trade)
+                                    .await
                                 {
                                     error!("{}, {}", e, msg);
                                 }
@@ -331,7 +340,7 @@ impl Handler {
         market: &mut Market,
         trade: &mut T,
     ) -> anyhow::Result<()> {
-        self.channels.remove(addr);
+        self.client_channels.remove(addr);
         market.handle_close(addr).await?;
         trade.handle_close(addr)?;
 
