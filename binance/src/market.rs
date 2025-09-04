@@ -53,41 +53,6 @@ impl Market {
         self.disconnected
     }
 
-    async fn subscribe(&mut self, symbols: Vec<String>) -> anyhow::Result<()> {
-        info!("subscribe symbols: {:?}", symbols);
-        for s in symbols {
-            // 将内部风格转换为 Binance stream 格式
-            // 输入可能是 "btcusdt@kline_1m" 或 "ethusdt@bookTicker" 或 "bnbusdt@depth20:@100ms"
-            if s.contains("@kline_") {
-                // kline
-                let (symbol, period) = s.split_once("@kline_").unwrap();
-                let args = WsArgs::new().with_inst_id(symbol.to_string());
-                self.client
-                    .subscribe(ChannelType::Candle(period.to_string()), args)
-                    .await?;
-            } else if s.ends_with("@bookTicker") {
-                let symbol = s.trim_end_matches("@bookTicker");
-                let args = WsArgs::new().with_inst_id(symbol.to_string());
-                self.client.subscribe(ChannelType::Books, args).await?;
-            } else if s.starts_with("depth") || s.contains("@depth") {
-                // 简化处理：统一用 Depth 标准频道
-                let symbol = s.split('@').next().unwrap_or(&s);
-                let args = WsArgs::new().with_inst_id(symbol.to_string());
-                self.client.subscribe(ChannelType::Depth, args).await?;
-            } else if s.ends_with("@ticker") {
-                let symbol = s.trim_end_matches("@ticker");
-                let args = WsArgs::new().with_inst_id(symbol.to_string());
-                self.client.subscribe(ChannelType::Tickers, args).await?;
-            } else {
-                // 兜底：按 ticker 处理
-                let symbol = s.split('@').next().unwrap_or(&s);
-                let args = WsArgs::new().with_inst_id(symbol.to_string());
-                self.client.subscribe(ChannelType::Tickers, args).await?;
-            }
-        }
-        Ok(())
-    }
-
     async fn send<T: Serialize + Debug>(
         &mut self,
         addr: &SocketAddr,

@@ -7,6 +7,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use tracing::{error, info};
 use trade::UsdtTrade;
+use websocket::Credentials;
 use xcrypto::init_tracing;
 
 #[derive(Debug, Deserialize)]
@@ -60,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
     let account = Account::new(
         "wss://fstream.binance.com/ws",
         "/fapi/v1/listenKey",
-        rest.clone(),
+        Credentials::new(config.apikey, config.pem, "".to_string(), "0"),
     )
     .await?;
     let trade = UsdtTrade::new(rest.clone(), account).await?;

@@ -19,3 +19,4 @@ tungstenite.workspace = true
 url.workspace = true
 binance = {path ="../"}
 xcrypto = {path ="../../"}
+websocket = {path = "../../websocket"}

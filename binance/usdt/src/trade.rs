@@ -35,7 +35,7 @@ async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, Binan
 pub struct UsdtTrade {
     rest: Arc<Rest>,
     txs: HashMap<SocketAddr, UnboundedSender<Message>>,
-    account: Account<UsdtListenKey>,
+    account: Account,
     // addr -> session_id
     session_id: HashMap<SocketAddr, u16>,
     // session_id -> session
@@ -45,7 +45,7 @@ pub struct UsdtTrade {
 }
 
 impl UsdtTrade {
-    pub async fn new(rest: Arc<Rest>, account: Account<UsdtListenKey>) -> anyhow::Result<Self> {
+    pub async fn new(rest: Arc<Rest>, account: Account) -> anyhow::Result<Self> {
         let products = get_positions(&rest).await?;
 
         Ok(Self {
