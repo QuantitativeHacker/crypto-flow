@@ -14,7 +14,7 @@ pub fn init_tracing(app_name: &str, log_dir: &str, level: &str) -> anyhow::Resul
     // 创建日志目录
     std::fs::create_dir_all(log_dir)?;
 
-    // 创建按日期滚动的文件 appender
+    // 创建按分钟滚动的文件 appender
     let file_appender = tracing_appender::rolling::minutely(log_dir, app_name);
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
@@ -25,14 +25,6 @@ pub fn init_tracing(app_name: &str, log_dir: &str, level: &str) -> anyhow::Resul
     // 可以支持同时输出到控制台和文件
     Registry::default()
         .with(env_filter)
-        // FIXME: 暂时不输出到控制台，防止看晕了
-        // .with(
-        //     fmt::layer()
-        //         .with_writer(std::io::stdout)
-        //         .with_target(true)
-        //         .with_file(true)
-        //         .with_line_number(true),
-        // )
         .with(
             fmt::layer()
                 .with_writer(non_blocking)
