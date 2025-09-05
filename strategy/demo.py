@@ -30,12 +30,8 @@ class Demo:
         print(order)
 
     def on_depth(self, depth: Depth):
-        # 调试：详细的时间信息
-        current_time = self.sub.datetime
         print(f"=== 深度回调 ===")
-        print(f"时间: {current_time}")
-        print(f"时间类型: {type(current_time)}")
-        print(f"时区: {getattr(current_time, 'tzinfo', 'None')}")
+        print(f"时间类型: {type(self.sub.datetime)}")
         print(f"时间: {self.sub.datetime}, 标的: {self.sub.symbol}")
         print(f"当前持仓: {self.sub.net}")
         print(f"当前阶段: {self.sub.phase}")
