@@ -6,7 +6,6 @@ set -euo pipefail
 # - 自动设置 CC/CXX/SDKROOT（修复 “找不到 cc/clang”）
 # 用法：
 #   ./scripts/gen_stub.sh            # release 运行
-#   ./scripts/gen_stub.sh --debug    # debug 运行
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -56,13 +55,6 @@ echo "[info] RUSTFLAGS: ${RUSTFLAGS}"
 cd "${PROJECT_ROOT}/pyalgo"
 
 PROFILE_FLAG="--release"
-if [[ "${1:-}" == "--debug" ]]; then
-  PROFILE_FLAG=""
-fi
-
-# 如缺依赖（pyo3-stub-gen/env_logger），请在 pyalgo/Cargo.toml 添加：
-#   pyo3-stub-gen = "0.13.1"
-#   env_logger = "0.11.8"
 
 exec cargo run ${PROFILE_FLAG} --bin gen_stub
 

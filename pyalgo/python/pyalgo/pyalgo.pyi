@@ -210,16 +210,46 @@ class EventType(Enum):
 
 class OrderType(Enum):
     LIMIT = ...
+    r"""
+    Limit order
+    """
     LIMIT_MAKER = ...
+    r"""
+    Limit maker order
+    """
     MARKET = ...
+    r"""
+    Market order
+    """
     STOP = ...
+    r"""
+    Stop order
+    """
     STOP_MARKET = ...
+    r"""
+    Stop market order
+    """
     STOP_LOSS = ...
+    r"""
+    Stop loss order
+    """
     STOP_LOSS_LIMIT = ...
+    r"""
+    Stop loss limit order
+    """
     TAKE_PROFIT = ...
+    r"""
+    Take profit order
+    """
     TAKE_PROFIT_LIMIT = ...
+    r"""
+    Take profit limit order
+    """
     TAKE_PROFIT_MARKET = ...
     TRAILING_STOP_MARKET = ...
+    r"""
+    Trailing stop market order
+    """
 
 class Phase(Enum):
     AUCTION = ...
@@ -230,8 +260,17 @@ class Phase(Enum):
     UNDEF = ...
 
 class Side(Enum):
+    r"""
+    The side of an order
+    """
     BUY = ...
+    r"""
+    Buy side
+    """
     SELL = ...
+    r"""
+    Sell side
+    """
 
 class State(Enum):
     NEW = ...
@@ -245,9 +284,27 @@ class State(Enum):
 
 class Tif(Enum):
     GTC = ...
+    r"""
+    Good till cancel
+    """
     IOC = ...
+    r"""
+    Immediate or cancel
+    """
     FOK = ...
+    r"""
+    Fill or kill
+    """
     GTX = ...
+    r"""
+    Good till date
+    """
     GTD = ...
+    r"""
+    Good till date
+    """
     UNDEF = ...
+    r"""
+    Undefined
+    """
 

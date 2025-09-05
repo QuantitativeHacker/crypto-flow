@@ -11,7 +11,6 @@ crate-type = ["cdylib", "rlib"]
 
 [[bin]]
 name = "gen_stub"
-doc = false
 
 [dependencies]
 pyo3 = {version = "0.26.0", features = ["chrono", "extension-module"]}
