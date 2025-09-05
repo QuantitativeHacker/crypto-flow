@@ -1,5 +1,5 @@
 use tracing_appender::non_blocking::WorkerGuard;
-use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use tracing_subscriber::{EnvFilter, Registry, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// 初始化 tracing 日志系统
 ///
@@ -15,7 +15,7 @@ pub fn init_tracing(app_name: &str, log_dir: &str, level: &str) -> anyhow::Resul
     std::fs::create_dir_all(log_dir)?;
 
     // 创建按日期滚动的文件 appender
-    let file_appender = tracing_appender::rolling::daily(log_dir, app_name);
+    let file_appender = tracing_appender::rolling::minutely(log_dir, app_name);
     let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
     // 创建环境过滤器

@@ -10,7 +10,7 @@ members = [
     "binance/usdt",
     "pyalgo", 
     "websocket",
-] 
+]
 
 [workspace.dependencies]
 anyhow = "1.0.82"

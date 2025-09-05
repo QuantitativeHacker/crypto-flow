@@ -5,6 +5,7 @@ use crate::{constant::*, Order, PositionRsp};
 use crate::{Event, Position};
 use log::*;
 use pyo3::prelude::*;
+use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
@@ -12,7 +13,8 @@ use std::time::{Duration, Instant};
 use std::vec;
 use xcrypto::chat::{Error, Login, LoginResponse, PositionReq, Request, Response};
 
-#[pyclass]
+#[gen_stub_pyclass]
+#[pyclass(unsendable)]
 pub struct Session {
     ws: WebSocketClient,
     session_id: u16,
@@ -111,8 +113,9 @@ impl Session {
                     let mut o = pyorder.borrow_mut(py);
                     o.on_update(order);
                 });
-
-                let e = Some(Event::new(crate::EventType::Order, pyorder.clone()));
+                let e = Python::with_gil(|py| {
+                    Some(Event::new(crate::EventType::Order, pyorder.clone_ref(py)))
+                });
                 if !active {
                     self.orders.remove(&id);
                 }
@@ -176,6 +179,7 @@ impl Session {
     }
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Session {
     #[new]
@@ -222,14 +226,19 @@ impl Session {
                 }
             }
             None => {
+                info!("session connecting...");
                 self.ws.connect().unwrap();
+                info!("session connected, fetching products...");
                 self.get_products().unwrap();
                 self.connection_time = Some(Instant::now());
 
                 while !self.login {
-                    self.process();
+                    if let Some(ev) = self.process() {
+                        debug!("boot event: {:?}", ev);
+                    }
                 }
 
+                info!("session logged in, set nonblocking");
                 self.ws.set_nonblocking(true).unwrap();
             }
         }
@@ -240,7 +249,10 @@ impl Session {
             return Err(pyo3::exceptions::PyException::new_err("Please login first"));
         }
 
-        let sub = self.subscription.get(symbol).cloned();
+        let sub = self
+            .subscription
+            .get(symbol)
+            .map(|s| Python::with_gil(|py| s.clone_ref(py)));
         match sub {
             Some(inner) => match self.send("subscribe", vec![format!("{}@{}", symbol, stream)]) {
                 Ok(_) => {
@@ -293,7 +305,8 @@ impl Session {
             );
 
             let pyorder = Python::with_gil(|py| Py::new(py, order).unwrap());
-            self.orders.insert(id, pyorder.clone());
+            self.orders
+                .insert(id, Python::with_gil(|py| pyorder.clone_ref(py)));
             return Some(pyorder);
         }
         return None;
@@ -317,11 +330,12 @@ impl Session {
 
     fn process(&mut self) -> Option<Py<PyAny>> {
         if let Some(msg) = self.ws.read() {
-            debug!("{:?}", msg);
+            debug!("recv msg: {:?}", msg);
             return self.on_message(msg);
         }
 
         if self.ws.is_closed() {
+            warn!("ws closed, reconnecting...");
             self.connect()
         }
         None

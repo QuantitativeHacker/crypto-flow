@@ -10,9 +10,12 @@ use chat::*;
 use constant::*;
 use phase::TradingPhase;
 use pyo3::prelude::*;
+use pyo3_stub_gen::{define_stub_info_gatherer, derive::*};
 use rest::*;
 use session::*;
 use subscription::Subscription;
+
+define_stub_info_gatherer!(stub_info);
 
 #[pymodule]
 fn pyalgo(m: &Bound<'_, PyModule>) -> PyResult<()> {

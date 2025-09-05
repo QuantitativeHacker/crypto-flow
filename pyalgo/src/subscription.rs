@@ -1,10 +1,10 @@
 use crate::{chat::Product, phase::TradingPhase, OrderType, Phase, Position, Tif};
-use chrono::DateTime;
-use chrono_tz::Tz;
 use pyo3::prelude::*;
+use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
 use rust_decimal::prelude::*;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct Subscription {
     product: Product,
@@ -26,6 +26,7 @@ impl Subscription {
     }
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Subscription {
     #[getter]
@@ -34,13 +35,13 @@ impl Subscription {
     }
 
     #[getter]
-    pub fn delivery(&self) -> DateTime<Tz> {
-        self.product.delivery()
+    pub fn delivery(&self) -> String {
+        self.product.delivery().to_string()
     }
 
     #[getter]
-    pub fn onboard(&self) -> DateTime<Tz> {
-        self.product.onboard()
+    pub fn onboard(&self) -> String {
+        self.product.onboard().to_string()
     }
 
     #[getter]

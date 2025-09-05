@@ -1,5 +1,5 @@
 use crate::chat;
-use log::{debug, error, info};
+use log::{debug, error, info, warn};
 use serde::Serialize;
 use std::fmt::Debug;
 use std::net::TcpStream;
@@ -22,7 +22,9 @@ impl WebSocketClient {
     }
 
     pub fn connect(&mut self) -> anyhow::Result<()> {
+        info!("ws connecting to {}", self.addr);
         let client = ClientBuilder::new(&self.addr)?.connect_insecure()?;
+        info!("ws connected");
         self.inner.replace(client);
 
         Ok(())
@@ -38,9 +40,11 @@ impl WebSocketClient {
 
     pub fn read(&mut self) -> Option<chat::Message> {
         if let Some(ws) = self.inner.as_mut() {
+            debug!("ws recv_message...");
             return match ws.recv_message() {
                 Ok(message) => match &message {
                     OwnedMessage::Text(text) => {
+                        debug!("ws text {} bytes", text.len());
                         let event = serde_json::from_str::<chat::Message>(&text);
                         match event {
                             Ok(event) => {
@@ -55,7 +59,7 @@ impl WebSocketClient {
                     }
                     OwnedMessage::Close(_) => {
                         self.inner.take();
-                        info!("Remote connection closed");
+                        warn!("Remote connection closed");
                         Some(chat::Message::Close)
                     }
                     _ => {
@@ -64,9 +68,8 @@ impl WebSocketClient {
                     }
                 },
                 Err(websocket::WebSocketError::NoDataAvailable) => {
-                    self.inner.take();
-                    error!("Remote connection was lost");
-                    Some(chat::Message::Close)
+                    debug!("ws no data available");
+                    None
                 }
                 _ => None,
             };
@@ -78,8 +81,9 @@ impl WebSocketClient {
         if let Some(ws) = self.inner.as_mut() {
             let message = serde_json::to_string(&data)?;
             let message = OwnedMessage::Text(message);
+            debug!("ws send {:?}", message);
             ws.send_message(&message)?;
-            debug!("Sending {:?}", data);
+            debug!("ws sent");
         }
         Ok(())
     }

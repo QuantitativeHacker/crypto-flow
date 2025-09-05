@@ -1,7 +1,9 @@
 use pyo3::prelude::*;
+use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyclass_enum};
 use serde::{Deserialize, Serialize};
 
-#[pyclass]
+#[gen_stub_pyclass_enum]
+#[pyclass(eq)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Phase {
@@ -13,14 +15,16 @@ pub enum Phase {
     UNDEF,
 }
 
-#[pyclass]
+#[gen_stub_pyclass_enum]
+#[pyclass(eq)]
 #[derive(Debug, Serialize, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
     BUY,
     SELL,
 }
 
-#[pyclass]
+#[gen_stub_pyclass_enum]
+#[pyclass(eq)]
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy)]
 #[allow(non_camel_case_types)]
 pub enum OrderType {
@@ -37,7 +41,8 @@ pub enum OrderType {
     TRAILING_STOP_MARKET,
 }
 
-#[pyclass]
+#[gen_stub_pyclass_enum]
+#[pyclass(eq)]
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum Tif {
     GTC,
@@ -48,7 +53,8 @@ pub enum Tif {
     UNDEF,
 }
 
-#[pyclass]
+#[gen_stub_pyclass_enum]
+#[pyclass(eq)]
 #[derive(Debug, Deserialize, Clone, Copy, PartialEq, Eq)]
 pub enum State {
     NEW,

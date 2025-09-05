@@ -1,8 +1,9 @@
 use crate::constant::Phase;
 use chrono::{DateTime, NaiveTime, Timelike, Utc};
 use chrono::{TimeDelta, TimeZone};
-use chrono_tz::{Asia::Shanghai, Tz};
+use chrono_tz::Asia::Shanghai;
 use pyo3::prelude::*;
+use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
 use std::cmp::Ordering;
 
 #[derive(Debug)]
@@ -83,11 +84,13 @@ where
     }
 }
 
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct TradingPhase {
     segmap: SegMap<u32, Phase>,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl TradingPhase {
     #[new]
@@ -121,10 +124,11 @@ impl TradingPhase {
         self.segmap.find(self.to_second(mills))
     }
 
-    pub fn to_datetime(&self, mills: i64) -> DateTime<Tz> {
+    pub fn to_datetime(&self, mills: i64) -> String {
         DateTime::from_timestamp_millis(mills)
             .unwrap()
             .with_timezone(&Shanghai)
+            .to_string()
     }
 }
 

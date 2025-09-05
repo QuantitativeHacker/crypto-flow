@@ -67,6 +67,7 @@ class Context(ContextBase):
 
     def process(self):
         if event := self.session.process():
+            print("[CTX] event:", event.event_type)
             match event.event_type:
                 case EventType.Depth | EventType.Kline:
                     self.on_market(event.data)

@@ -6,10 +6,16 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
 name = "pyalgo"
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
+
+
+[[bin]]
+name = "gen_stub"
+doc = false
 
 [dependencies]
-pyo3 = {version = "0.21.2", features = ["chrono", "extension-module"]}
+pyo3 = {version = "0.26.0", features = ["chrono", "extension-module"]}
+pyo3-stub-gen = "0.13.1"
 log = "0.4.21"
 xcrypto = {path = "../"}
 chrono = "0.4.38"
@@ -24,3 +30,4 @@ reqwest = {version = "0.12.4", features = ["blocking", "json"]}
 openssl = "0.10.64"
 base64 = "0.22.1"
 rust_decimal = "1.35.0"
+env_logger = "0.11.8"

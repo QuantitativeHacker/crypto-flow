@@ -5,6 +5,7 @@ use openssl::pkey::{PKey, Private};
 use openssl::sign::Signer;
 use pyo3::prelude::*;
 use pyo3::types::PyDict;
+use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
 use reqwest::{blocking, Method};
 use std::collections::HashMap;
 use std::fs::File;
@@ -12,6 +13,7 @@ use std::io::Read;
 
 use crate::PremiumIndex;
 
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct Rest {
     base_uri: String,
@@ -63,6 +65,7 @@ impl Rest {
     }
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Rest {
     #[new]

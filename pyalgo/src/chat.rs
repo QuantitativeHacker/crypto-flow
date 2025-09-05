@@ -2,17 +2,20 @@ use crate::constant::*;
 use chrono::DateTime;
 use chrono_tz::{Asia::Shanghai, Tz};
 use pyo3::prelude::*;
+use pyo3::{conversion::IntoPyObject, IntoPyObjectExt};
+use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyclass_enum, gen_stub_pymethods};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashSet;
 use xcrypto::chat::{ErrorResponse, LoginResponse, Response, Success};
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 struct Quote {
     pub price: f64,
     pub quantity: f64,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct Depth {
     time: u64,
@@ -22,6 +25,7 @@ pub struct Depth {
     asks: Vec<Quote>,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Depth {
     #[getter]
@@ -30,10 +34,11 @@ impl Depth {
     }
 
     #[getter]
-    fn datetime(&self) -> DateTime<Tz> {
+    fn datetime(&self) -> String {
         DateTime::from_timestamp_millis(self.time as i64)
             .unwrap()
             .with_timezone(&Shanghai)
+            .to_string()
     }
 
     #[getter]
@@ -85,7 +90,8 @@ impl Depth {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct Kline {
     time: u64,       // K线结束时间
@@ -107,6 +113,7 @@ pub struct Kline {
     buy_amount: f64,     // 主动买入成交额
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl Kline {
     #[getter]
@@ -115,10 +122,11 @@ impl Kline {
     }
 
     #[getter]
-    fn datetime(&self) -> DateTime<Tz> {
+    fn datetime(&self) -> String {
         DateTime::from_timestamp_millis(self.time as i64)
             .unwrap()
             .with_timezone(&Shanghai)
+            .to_string()
     }
 
     #[getter]
@@ -167,10 +175,11 @@ impl Kline {
     }
 
     #[getter]
-    fn start_datetime(&self) -> DateTime<Tz> {
+    fn start_datetime(&self) -> String {
         DateTime::from_timestamp_millis(self.start_time as i64)
             .unwrap()
             .with_timezone(&Shanghai)
+            .to_string()
     }
 
     #[getter]
@@ -314,8 +323,9 @@ pub enum Message {
     Close,
 }
 
-#[derive(Debug, Clone, Copy)]
-#[pyclass]
+#[derive(Debug, Clone, Copy, PartialEq)]
+#[gen_stub_pyclass_enum]
+#[pyclass(eq)]
 pub enum EventType {
     Login,
     Depth,
@@ -325,6 +335,7 @@ pub enum EventType {
 }
 
 #[derive(Debug)]
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct Event {
     event_type: EventType,
@@ -332,16 +343,19 @@ pub struct Event {
 }
 
 impl Event {
-    pub fn new<T: IntoPy<PyObject>>(event_type: EventType, data: T) -> Py<PyAny> {
+    pub fn new<T: for<'a> IntoPyObject<'a>>(event_type: EventType, data: T) -> Py<PyAny> {
         Python::with_gil(|py| {
             Self {
                 event_type,
-                data: data.into_py(py),
+                data: data.into_py_any(py).unwrap(),
             }
-            .into_py(py)
+            .into_py_any(py)
+            .unwrap()
         })
     }
 }
+
+#[gen_stub_pymethods]
 #[pymethods]
 impl Event {
     #[getter]
@@ -364,6 +378,7 @@ impl Event {
 }
 
 #[derive(Debug, Deserialize)]
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct Order {
     time: i64,
@@ -421,6 +436,8 @@ impl Order {
         *self = other
     }
 }
+
+#[gen_stub_pymethods]
 #[pymethods]
 impl Order {
     #[getter]
@@ -428,10 +445,11 @@ impl Order {
         self.time
     }
     #[getter]
-    fn datetime(&self) -> DateTime<Tz> {
+    fn datetime(&self) -> String {
         DateTime::from_timestamp_millis(self.time as i64)
             .unwrap()
             .with_timezone(&Shanghai)
+            .to_string()
     }
     #[getter]
     fn symbol(&self) -> &str {
@@ -470,10 +488,11 @@ impl Order {
         self.trade_time
     }
     #[getter]
-    fn trade_dt(&self) -> DateTime<Tz> {
+    fn trade_dt(&self) -> String {
         DateTime::from_timestamp_millis(self.trade_time as i64)
             .unwrap()
             .with_timezone(&Shanghai)
+            .to_string()
     }
     #[getter]
     fn trade_price(&self) -> f64 {
@@ -527,6 +546,7 @@ pub struct CancelRequest {
 }
 
 #[derive(Debug, Deserialize, Clone)]
+#[gen_stub_pyclass]
 #[pyclass]
 pub struct Position {
     pub symbol: String,
@@ -534,6 +554,7 @@ pub struct Position {
 }
 
 #[derive(Debug, Deserialize)]
+#[gen_stub_pyclass]
 #[pyclass]
 #[allow(non_snake_case)]
 pub struct PremiumIndex {
@@ -553,6 +574,7 @@ pub struct PremiumIndex {
     time: i64,
 }
 
+#[gen_stub_pymethods]
 #[pymethods]
 impl PremiumIndex {
     #[getter]
@@ -560,10 +582,11 @@ impl PremiumIndex {
         self.time
     }
     #[getter]
-    fn datetime(&self) -> DateTime<Tz> {
+    fn datetime(&self) -> String {
         DateTime::from_timestamp_millis(self.time)
             .unwrap()
             .with_timezone(&Shanghai)
+            .to_string()
     }
     #[getter]
     fn symbol(&self) -> &str {
@@ -590,10 +613,11 @@ impl PremiumIndex {
         self.nextFundingTime
     }
     #[getter]
-    fn next_funding_dt(&self) -> DateTime<Tz> {
+    fn next_funding_dt(&self) -> String {
         DateTime::from_timestamp_millis(self.nextFundingTime as i64)
             .unwrap()
             .with_timezone(&Shanghai)
+            .to_string()
     }
     #[getter]
     fn interest_rate(&self) -> f64 {
