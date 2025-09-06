@@ -344,7 +344,7 @@ pub struct Event {
 
 impl Event {
     pub fn new<T: for<'a> IntoPyObject<'a>>(event_type: EventType, data: T) -> Py<PyAny> {
-        Python::with_gil(|py| {
+        Python::attach(|py| {
             Self {
                 event_type,
                 data: data.into_py_any(py).unwrap(),

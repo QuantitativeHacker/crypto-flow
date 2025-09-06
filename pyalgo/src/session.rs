@@ -70,7 +70,7 @@ impl Session {
         while let Some(product) = products.pop() {
             info!("{:?}", product);
             let symbol = product.symbol().clone();
-            let sub = Python::with_gil(|py| Py::new(py, Subscription::new(product)))?;
+            let sub = Python::attach(|py| Py::new(py, Subscription::new(product)))?;
             self.subscription.insert(symbol, sub);
         }
         info!("Total products {}", cnt);
@@ -84,7 +84,7 @@ impl Session {
         let positions = result.positions;
         for position in positions {
             if let Some(sub) = self.subscription.get(&position.symbol) {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let mut pysub = sub.borrow_mut(py);
                     pysub.on_position(position)
                 })
@@ -109,11 +109,11 @@ impl Session {
         let id = order.id();
         match self.orders.get_mut(&id) {
             Some(pyorder) => {
-                Python::with_gil(|py| {
+                Python::attach(|py| {
                     let mut o = pyorder.borrow_mut(py);
                     o.on_update(order);
                 });
-                let e = Python::with_gil(|py| {
+                let e = Python::attach(|py| {
                     Some(Event::new(crate::EventType::Order, pyorder.clone_ref(py)))
                 });
                 if !active {
@@ -129,7 +129,7 @@ impl Session {
     fn on_position(&mut self, position: Position) {
         info!("{:?}", position);
         if let Some(sub) = self.subscription.get_mut(&position.symbol) {
-            Python::with_gil(|py| {
+            Python::attach(|py| {
                 let mut sub = sub.borrow_mut(py);
                 sub.on_position(position);
             })
@@ -252,7 +252,7 @@ impl Session {
         let sub = self
             .subscription
             .get(symbol)
-            .map(|s| Python::with_gil(|py| s.clone_ref(py)));
+            .map(|s| Python::attach(|py| s.clone_ref(py)));
         match sub {
             Some(inner) => match self.send("subscribe", vec![format!("{}@{}", symbol, stream)]) {
                 Ok(_) => {
@@ -304,9 +304,9 @@ impl Session {
                 tif.to_owned(),
             );
 
-            let pyorder = Python::with_gil(|py| Py::new(py, order).unwrap());
+            let pyorder = Python::attach(|py| Py::new(py, order).unwrap());
             self.orders
-                .insert(id, Python::with_gil(|py| pyorder.clone_ref(py)));
+                .insert(id, Python::attach(|py| pyorder.clone_ref(py)));
             return Some(pyorder);
         }
         return None;
