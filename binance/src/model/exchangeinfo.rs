@@ -1,7 +1,6 @@
-use serde::{Deserialize, Serialize};
-use serde_json::Serializer;
+use serde::Deserialize;
 
-use crate::model::{filter::FilterField, symbol::BinanceSymbol};
+use crate::model::symbol::BinanceSymbol;
 
 // 全局费率限制信息
 #[derive(Debug, Deserialize, Clone)]
