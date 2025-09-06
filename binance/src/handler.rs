@@ -1,5 +1,6 @@
 use crate::market::Market;
-use crate::{BinanceCancel, BinanceOrder, Trade};
+use crate::model::order::{BinanceCancel, BinanceOrder};
+use crate::Trade;
 use log::*;
 use std::collections::HashMap;
 use std::net::SocketAddr;

@@ -45,7 +45,7 @@ Login {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct Depth<T> {
+pub struct GeneralDepth<T> {
     pub time: i64,
     pub symbol: String,
     pub stream: String,
@@ -54,7 +54,7 @@ pub struct Depth<T> {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct Kline {
+pub struct GeneralKline {
     pub time: i64,       // 这根K线的结束时间 (T)
     pub start_time: i64, // 这根K线的起始时间 (t)
     pub symbol: String,
@@ -74,18 +74,19 @@ pub struct Kline {
     pub buy_amount: f64,     // 主动买入成交额 (Q)
 }
 
+/// 订单信息
 #[derive(Debug, Serialize)]
 pub struct Order {
-    pub time: i64,
+    pub internal_id: u32,
+    pub state: State,
+    pub order_id: i64,
     pub symbol: String,
     pub side: Side,
-    pub state: State,
-    pub order_type: OrderType,
-    pub tif: Tif,
-    pub quantity: f64,
+    pub type_: OrderType,
+    pub tif: TimeInForce,
     pub price: f64,
-    pub order_id: i64,
-    pub internal_id: u32,
+    pub quantity: f64,
+
     pub trade_time: i64,
     pub trade_price: f64,
     pub trade_quantity: f64,
@@ -99,26 +100,21 @@ impl Order {
         symbol: String,
         side: Side,
         state: State,
-        order_type: OrderType,
-        tif: Tif,
+        type_: OrderType,
+        tif: TimeInForce,
         quantity: f64,
         price: f64,
     ) -> Self {
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_millis() as i64;
         Self {
-            time: ts,
+            internal_id: id,
             symbol,
             side,
             state,
-            order_type,
+            type_,
             tif,
             quantity,
             price,
             order_id: -1,
-            internal_id: id,
             trade_time: 0,
             trade_price: 0.0,
             trade_quantity: 0.0,
@@ -130,16 +126,119 @@ impl Order {
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 #[allow(non_camel_case_types)]
 pub enum State {
-    NEW,
-    PARTIALLY_FILLED,
-    FILLED,
-    CANCELED,
-    REJECTED,
-    EXPIRED,
+    // Binance和OKX共有状态
+    CANCELED,         // 用户撤销了订单
+    PARTIALLY_FILLED, // 部分订单已被成交
+    FILLED,           // 订单已完全成交
+
+    // Binance 状态
+    NEW,            // 该订单被交易引擎接受
+    PENDING_NEW,    // 该订单处于待处理阶段，直到其所属订单组中的 working order 完全成交
+    PENDING_CANCEL, // 撤销中(目前并未使用)
+    REJECTED,       // 订单没有被交易引擎接受，也没被处理
+    EXPIRED,        // 该订单根据订单类型的规则被取消或被交易引擎取消
     #[allow(non_camel_case_types)]
-    EXPIRED_IN_MATCH,
+    EXPIRED_IN_MATCH, // 表示订单由于 STP 而过期
+
+    // OKX 特有状态
+    LIVE, // 等待成交 (OKX)
+    #[allow(non_camel_case_types)]
+    MMP_CANCELED, // 做市商保护机制导致的自动撤单 (OKX)
 }
 
+impl std::str::FromStr for State {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            // Binance 状态
+            "NEW" => Ok(State::NEW),
+            "PENDING_NEW" => Ok(State::PENDING_NEW),
+            "PARTIALLY_FILLED" => Ok(State::PARTIALLY_FILLED),
+            "FILLED" => Ok(State::FILLED),
+            "CANCELED" => Ok(State::CANCELED),
+            "PENDING_CANCEL" => Ok(State::PENDING_CANCEL),
+            "REJECTED" => Ok(State::REJECTED),
+            "EXPIRED" => Ok(State::EXPIRED),
+            "EXPIRED_IN_MATCH" => Ok(State::EXPIRED_IN_MATCH),
+
+            // OKX 状态
+            "live" => Ok(State::LIVE),
+            "canceled" => Ok(State::CANCELED),
+            "partially_filled" => Ok(State::PARTIALLY_FILLED),
+            "filled" => Ok(State::FILLED),
+            "mmp_canceled" => Ok(State::MMP_CANCELED),
+
+            _ => Err(()),
+        }
+    }
+}
+
+impl State {
+    /// 将状态转换为 Binance 格式的字符串
+    pub fn to_binance_str(&self) -> &'static str {
+        match self {
+            State::NEW => "NEW",
+            State::PENDING_NEW => "PENDING_NEW",
+            State::PARTIALLY_FILLED => "PARTIALLY_FILLED",
+            State::FILLED => "FILLED",
+            State::CANCELED => "CANCELED",
+            State::PENDING_CANCEL => "PENDING_CANCEL",
+            State::REJECTED => "REJECTED",
+            State::EXPIRED => "EXPIRED",
+            State::EXPIRED_IN_MATCH => "EXPIRED_IN_MATCH",
+            State::LIVE => "NEW", // OKX 的 live 对应 Binance 的 NEW
+            State::MMP_CANCELED => "CANCELED", // OKX 的 mmp_canceled 对应 Binance 的 CANCELED
+        }
+    }
+
+    /// 将状态转换为 OKX 格式的字符串
+    pub fn to_okx_str(&self) -> &'static str {
+        match self {
+            State::NEW => "live",
+            State::PENDING_NEW => "live",
+            State::PARTIALLY_FILLED => "partially_filled",
+            State::FILLED => "filled",
+            State::CANCELED => "canceled",
+            State::PENDING_CANCEL => "live",
+            State::REJECTED => "canceled",
+            State::EXPIRED => "canceled",
+            State::EXPIRED_IN_MATCH => "canceled",
+            State::LIVE => "live",
+            State::MMP_CANCELED => "mmp_canceled",
+        }
+    }
+
+    /// 从 Binance 状态字符串创建状态
+    pub fn from_binance_str(s: &str) -> Result<Self, ()> {
+        match s {
+            "NEW" => Ok(State::NEW),
+            "PENDING_NEW" => Ok(State::PENDING_NEW),
+            "PARTIALLY_FILLED" => Ok(State::PARTIALLY_FILLED),
+            "FILLED" => Ok(State::FILLED),
+            "CANCELED" => Ok(State::CANCELED),
+            "PENDING_CANCEL" => Ok(State::PENDING_CANCEL),
+            "REJECTED" => Ok(State::REJECTED),
+            "EXPIRED" => Ok(State::EXPIRED),
+            "EXPIRED_IN_MATCH" => Ok(State::EXPIRED_IN_MATCH),
+            _ => Err(()),
+        }
+    }
+
+    /// 从 OKX 状态字符串创建状态
+    pub fn from_okx_str(s: &str) -> Result<Self, ()> {
+        match s {
+            "live" => Ok(State::LIVE),
+            "canceled" => Ok(State::CANCELED),
+            "partially_filled" => Ok(State::PARTIALLY_FILLED),
+            "filled" => Ok(State::FILLED),
+            "mmp_canceled" => Ok(State::MMP_CANCELED),
+            _ => Err(()),
+        }
+    }
+}
+
+/// Side of an order, Buy or Sell
 #[derive(Debug, Serialize, Deserialize, Clone, Copy)]
 pub enum Side {
     BUY,
@@ -156,20 +255,21 @@ impl FromStr for Side {
         }
     }
 }
+
+/// Type of an order, Limit, Market, Stop, etc.
+/// Reference:
+/// https://developers.binance.com/docs/zh-CN/binance-spot-api-docs/testnet/websocket-api/trading-requests#place-new-order-trade
+///
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
 #[allow(non_camel_case_types)]
 pub enum OrderType {
     LIMIT,
-    LIMIT_MAKER,
     MARKET,
-    STOP,
-    STOP_MARKET,
     STOP_LOSS,
     STOP_LOSS_LIMIT,
     TAKE_PROFIT,
     TAKE_PROFIT_LIMIT,
-    TAKE_PROFIT_MARKET,
-    TRAILING_STOP_MARKET,
+    LIMIT_MAKER,
 }
 
 impl FromStr for OrderType {
@@ -177,41 +277,35 @@ impl FromStr for OrderType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "LIMIT" => Ok(OrderType::LIMIT),
-            "LIMIT_MAKER" => Ok(OrderType::LIMIT_MAKER),
-            "MARKET" => Ok(OrderType::MARKET),
-            "STOP" => Ok(OrderType::STOP),
-            "STOP_MARKET" => Ok(OrderType::STOP_MARKET),
-            "STOP_LOSS" => Ok(OrderType::STOP_LOSS),
-            "STOP_LOSS_LIMIT" => Ok(OrderType::STOP_LOSS_LIMIT),
-            "TAKE_PROFIT" => Ok(OrderType::TAKE_PROFIT),
-            "TAKE_PROFIT_LIMIT" => Ok(OrderType::TAKE_PROFIT_LIMIT),
-            "TAKE_PROFIT_MARKET" => Ok(OrderType::TRAILING_STOP_MARKET),
-            "TRAILING_STOP_MARKET" => Ok(OrderType::TRAILING_STOP_MARKET),
+            "LIMIT" => Ok(Self::LIMIT),
+            "MARKET" => Ok(Self::MARKET),
+            "STOP_LOSS" => Ok(Self::STOP_LOSS),
+            "STOP_LOSS_LIMIT" => Ok(Self::STOP_LOSS_LIMIT),
+            "TAKE_PROFIT" => Ok(Self::TAKE_PROFIT),
+            "TAKE_PROFIT_LIMIT" => Ok(Self::TAKE_PROFIT_LIMIT),
+            "LIMIT_MAKER" => Ok(Self::LIMIT_MAKER),
             _ => unreachable!(),
         }
     }
 }
+
+/// Reference:
+/// https://developers.binance.com/docs/zh-CN/binance-spot-api-docs/enums#%E7%94%9F%E6%95%88%E6%97%B6%E9%97%B4-timeinforce
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
-pub enum Tif {
+pub enum TimeInForce {
     GTC,
     IOC,
     FOK,
-    GTX,
-    GTD,
-    UNDEF,
 }
 
-impl FromStr for Tif {
+impl FromStr for TimeInForce {
     type Err = ();
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "GTC" => Ok(Self::GTC),
             "IOC" => Ok(Self::IOC),
             "FOK" => Ok(Self::FOK),
-            "GTX" => Ok(Self::GTX),
-            "GTD" => Ok(Self::GTD),
-            _ => Ok(Self::UNDEF),
+            _ => unreachable!(),
         }
     }
 }

@@ -92,10 +92,4 @@ impl PositionDB {
         sqlx::query(&query).execute(self.conn.borrow()).await?;
         Ok(())
     }
-
-    pub async fn drop_table(&self, session_id: u16) -> anyhow::Result<()> {
-        let query = format!("DROP TABLE IF EXISTS \"{}\"", session_id);
-        sqlx::query(&query).execute(self.conn.borrow()).await?;
-        Ok(())
-    }
 }

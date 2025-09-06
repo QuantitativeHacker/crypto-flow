@@ -60,21 +60,7 @@ async fn main() -> anyhow::Result<()> {
     )?);
     let credentials = Credentials::new(config.apikey, config.pem, "".to_string(), "0");
 
-    let account = if config.margin {
-        Account::new(
-            "wss://stream.binance.com:9443/ws",
-            "/sapi/v1/userDataStream",
-            credentials,
-        )
-        .await?
-    } else {
-        Account::new(
-            "wss://stream.binance.com:9443/ws",
-            "/api/v3/userDataStream",
-            credentials,
-        )
-        .await?
-    };
+    let account = Account::new("wss://stream.binance.com:9443/ws", credentials).await?;
     let trade = SpotTrade::new(rest.clone(), account, config.margin).await?;
 
     if let Err(e) = app.keep_running(market, trade).await {

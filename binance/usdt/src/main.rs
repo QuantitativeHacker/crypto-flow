@@ -60,7 +60,6 @@ async fn main() -> anyhow::Result<()> {
 
     let account = Account::new(
         "wss://fstream.binance.com/ws",
-        "/fapi/v1/listenKey",
         Credentials::new(config.apikey, config.pem, "".to_string(), "0"),
     )
     .await?;

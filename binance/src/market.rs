@@ -1,19 +1,18 @@
-use crate::chat::Event;
-use crate::{BinanceQuote, MarketStream, Subscriber, Trade};
+use crate::model::quote::BinanceQuote;
+use crate::model::{Event, MarketStream};
+use crate::{Subscriber, Trade};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::net::SocketAddr;
 use std::{collections::HashMap, fmt::Debug};
 use tokio::sync::mpsc::UnboundedSender;
-use tokio::time::{Duration, Instant};
+use tokio::time::Duration;
 use tracing::{debug, error, info};
 use tungstenite::Message;
-use websocket::channel::{Args as WsArgs, ChannelType};
 use websocket::{BinanceProtocol, WebsocketClient};
 use xcrypto::parser::Parser;
 use xcrypto::{chat::*, error_code::*};
 pub struct Market {
-    addr: String,
     txs: HashMap<SocketAddr, UnboundedSender<Message>>,
     subscribers: HashMap<SocketAddr, Subscriber>,
     symbols: HashMap<String, u16>,
@@ -22,7 +21,6 @@ pub struct Market {
     rx: Option<tokio::sync::mpsc::Receiver<Value>>,
     disconnected: bool,
     id: i64,
-    time: Instant,
 }
 
 impl Market {
@@ -36,7 +34,6 @@ impl Market {
             .await?;
 
         Ok(Self {
-            addr,
             txs: HashMap::default(),
             subscribers: HashMap::default(),
             symbols: HashMap::default(),
@@ -45,7 +42,6 @@ impl Market {
             rx: Some(rx),
             disconnected: false,
             id: 1,
-            time: Instant::now(),
         })
     }
 
@@ -185,19 +181,19 @@ impl Market {
 
         let data = match stream {
             MarketStream::BookTicker(book) => {
-                let depth: Depth<BinanceQuote> = book.into();
-                serde_json::to_string(&depth)?
+                // FIXME: add BookTicker in python
+                serde_json::to_string(&book)?
             }
             MarketStream::Kline(kline) => {
-                let kline: Kline = kline.into();
+                let kline: GeneralKline = kline.into();
                 serde_json::to_string(&kline)?
             }
             MarketStream::SpotDepth(depth) => {
-                let depth: Depth<BinanceQuote> = depth.into();
+                let depth: GeneralDepth<BinanceQuote> = depth.into();
                 serde_json::to_string(&depth)?
             }
             MarketStream::FutureDepth(depth) => {
-                let depth: Depth<BinanceQuote> = depth.into();
+                let depth: GeneralDepth<BinanceQuote> = depth.into();
                 serde_json::to_string(&depth)?
             }
         };

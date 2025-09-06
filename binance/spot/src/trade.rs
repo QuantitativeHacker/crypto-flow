@@ -1,6 +1,9 @@
 use crate::rest::Rest;
 use ::serde::Serialize;
-use binance::chat::*;
+use binance::model::order::BinanceCancel;
+use binance::model::order::BinanceOrder;
+use binance::model::symbol::BinanceSymbol;
+use binance::model::{Event, ExecutionReport};
 use binance::*;
 use native_json::Deserialize;
 use std::collections::HashMap;
@@ -15,12 +18,12 @@ use xcrypto::error_code::*;
 use xcrypto::parser::Parser;
 use xcrypto::position::PositionDB;
 
-async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, BinanceProduct>> {
+async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, BinanceSymbol>> {
     let rsp = rest.get("/api/v3/exchangeInfo", &[], false).await?;
     let results: serde_json::Value = serde_json::from_str(&rsp.text().await?)?;
 
     let results = results.get("symbols").unwrap();
-    let results: Vec<BinanceProduct> = serde_json::from_value(results.to_owned())?;
+    let results: Vec<BinanceSymbol> = serde_json::from_value(results.to_owned())?;
     let mut products = HashMap::new();
 
     for result in results {
@@ -41,7 +44,7 @@ pub struct SpotTrade {
     // session_id -> session
     session: HashMap<u16, Session>,
     posdb: Arc<PositionDB>,
-    products: HashMap<String, BinanceProduct>,
+    products: HashMap<String, BinanceSymbol>,
 }
 
 impl SpotTrade {
@@ -66,7 +69,7 @@ impl Trade for SpotTrade {
         self.account.disconnected()
     }
 
-    fn products(&self) -> &HashMap<String, BinanceProduct> {
+    fn products(&self) -> &HashMap<String, BinanceSymbol> {
         &self.products
     }
 

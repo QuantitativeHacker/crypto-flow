@@ -1,5 +1,5 @@
 use pyo3::prelude::*;
-use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyclass_enum};
+use pyo3_stub_gen::derive::gen_stub_pyclass_enum;
 use serde::{Deserialize, Serialize};
 
 #[gen_stub_pyclass_enum]

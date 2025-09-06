@@ -1,5 +1,9 @@
 use crate::rest::Rest;
-use binance::chat::*;
+use binance::model::order::usdt::OrderUpdate;
+use binance::model::order::BinanceCancel;
+use binance::model::order::BinanceOrder;
+use binance::model::symbol::BinanceSymbol;
+use binance::model::Event;
 use binance::*;
 use native_json::Deserialize;
 use serde::Serialize;
@@ -16,12 +20,12 @@ use xcrypto::error_code::DUPLICATE_LOGIN;
 use xcrypto::parser::Parser;
 use xcrypto::position::PositionDB;
 
-async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, BinanceProduct>> {
+async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, BinanceSymbol>> {
     let rsp = rest.get("/fapi/v1/exchangeInfo", &[], false).await?;
     let results: serde_json::Value = serde_json::from_str(&rsp.text().await?)?;
 
     let results = results.get("symbols").unwrap();
-    let results: Vec<BinanceProduct> = serde_json::from_value(results.to_owned())?;
+    let results: Vec<BinanceSymbol> = serde_json::from_value(results.to_owned())?;
     let mut products = HashMap::new();
 
     for result in results {
@@ -41,7 +45,7 @@ pub struct UsdtTrade {
     // session_id -> session
     session: HashMap<u16, Session>,
     posdb: Arc<PositionDB>,
-    products: HashMap<String, BinanceProduct>,
+    products: HashMap<String, BinanceSymbol>,
 }
 
 impl UsdtTrade {
@@ -64,7 +68,7 @@ impl Trade for UsdtTrade {
         self.account.disconnected()
     }
 
-    fn products(&self) -> &HashMap<String, BinanceProduct> {
+    fn products(&self) -> &HashMap<String, BinanceSymbol> {
         &self.products
     }
 

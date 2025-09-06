@@ -1,22 +1,17 @@
 use serde_json::Value;
-use std::time::Instant;
-use tracing::{debug, error, info};
+use tracing::{error, info};
 use tungstenite::Message;
 use url::Url;
 use websocket::BinanceWsApiWebsocketClient;
 use websocket::Credentials;
 
 pub struct Account {
-    addr: String,
-    api: String,
-    ws: BinanceWsApiWebsocketClient,
     rx: Option<tokio::sync::mpsc::Receiver<Value>>,
-    time: Instant,
     disconnected: bool,
 }
 
 impl Account {
-    pub async fn new(addr: &str, api: &str, cred: Credentials) -> anyhow::Result<Self> {
+    pub async fn new(addr: &str, cred: Credentials) -> anyhow::Result<Self> {
         let addr = Url::parse(addr)?.to_string();
 
         info!("Account Websocket: {:?}", addr);
@@ -24,11 +19,7 @@ impl Account {
         ws.set_url(&addr);
         let rx = ws.connect().await?;
         Ok(Self {
-            addr: addr.into(),
-            api: api.into(),
-            ws,
             rx: Some(rx),
-            time: Instant::now(),
             disconnected: false,
         })
     }
