@@ -53,6 +53,26 @@ pub enum OrderType {
     #[doc = "Trailing stop market order"]
     TRAILING_STOP_MARKET,
 }
+use std::fmt::Display;
+
+impl Display for OrderType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            OrderType::LIMIT => "LIMIT",
+            OrderType::MARKET => "MARKET",
+            OrderType::STOP => "STOP",
+            OrderType::STOP_MARKET => "STOP_MARKET",
+            OrderType::STOP_LOSS => "STOP_LOSS",
+            OrderType::STOP_LOSS_LIMIT => "STOP_LOSS_LIMIT",
+            OrderType::TAKE_PROFIT => "TAKE_PROFIT",
+            OrderType::TAKE_PROFIT_LIMIT => "TAKE_PROFIT_LIMIT",
+            OrderType::TAKE_PROFIT_MARKET => "TAKE_PROFIT_MARKET",
+            OrderType::TRAILING_STOP_MARKET => "TRAILING_STOP_MARKET",
+            OrderType::LIMIT_MAKER => "LIMIT_MAKER",
+        };
+        write!(f, "{}", s)
+    }
+}
 
 #[gen_stub_pyclass_enum]
 #[pyclass(eq)]

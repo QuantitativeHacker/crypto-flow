@@ -227,72 +227,127 @@ impl Kline {
     }
 }
 
-#[derive(Debug, Deserialize)]
-pub struct Product {
-    #[serde(flatten)]
-    inner: BinanceSymbol,
+#[derive(Debug, Deserialize, Clone)]
+#[serde(untagged)] // 自动识别类型
+pub enum Product {
+    Binance(BinanceSymbol),
+    // 未来可以添加其他交易所
+    // Okx(OkxInstrument),
+}
+
+// 为 Product 枚举实现 TradingRules trait
+impl TradingRules for Product {
+    fn symbol(&self) -> &String {
+        match self {
+            Product::Binance(b) => b.symbol(),
+            // Product::Okx(o) => o.symbol(),
+        }
+    }
+
+    fn min_price(&self) -> f64 {
+        match self {
+            Product::Binance(b) => b.min_price(),
+            // Product::Okx(o) => o.min_price(),
+        }
+    }
+
+    fn max_price(&self) -> f64 {
+        match self {
+            Product::Binance(b) => b.max_price(),
+            // Product::Okx(o) => o.max_price(),
+        }
+    }
+
+    fn tick_size(&self) -> f64 {
+        match self {
+            Product::Binance(b) => b.tick_size(),
+            // Product::Okx(o) => o.tick_size(),
+        }
+    }
+
+    fn min_quantity(&self) -> f64 {
+        match self {
+            Product::Binance(b) => b.min_quantity(),
+            // Product::Okx(o) => o.min_quantity(),
+        }
+    }
+
+    fn max_quantity(&self) -> f64 {
+        match self {
+            Product::Binance(b) => b.max_quantity(),
+            // Product::Okx(o) => o.max_quantity(),
+        }
+    }
+
+    fn lot_size(&self) -> f64 {
+        match self {
+            Product::Binance(b) => b.lot_size(),
+            // Product::Okx(o) => o.lot_size(),
+        }
+    }
+
+    fn min_notional(&self) -> f64 {
+        match self {
+            Product::Binance(b) => b.min_notional(),
+            // Product::Okx(o) => o.min_notional(),
+        }
+    }
 }
 
 impl Product {
     pub fn symbol(&self) -> &String {
-        self.inner.symbol()
+        match self {
+            Product::Binance(inner) => inner.symbol(),
+        }
     }
 
     pub fn delivery(&self) -> DateTime<Tz> {
-        match self.inner.deliveryDate {
-            Some(delivery) => DateTime::from_timestamp_millis(delivery as i64)
-                .unwrap()
-                .with_timezone(&Shanghai),
-            None => DateTime::<Tz>::MAX_UTC.with_timezone(&Shanghai),
+        match self {
+            Product::Binance(b) => match b.deliveryDate {
+                Some(delivery) => DateTime::from_timestamp_millis(delivery as i64)
+                    .unwrap()
+                    .with_timezone(&Shanghai),
+                None => DateTime::<Tz>::MAX_UTC.with_timezone(&Shanghai),
+            }, // Product::Okx(o) => { /* OKX 实现 */ }
         }
     }
 
     pub fn onboard(&self) -> DateTime<Tz> {
-        match self.inner.onboardDate {
-            Some(onboard) => DateTime::from_timestamp_millis(onboard as i64)
-                .unwrap()
-                .with_timezone(&Shanghai),
-            None => DateTime::<Tz>::MAX_UTC.with_timezone(&Shanghai),
+        match self {
+            Product::Binance(b) => match b.onboardDate {
+                Some(onboard) => DateTime::from_timestamp_millis(onboard as i64)
+                    .unwrap()
+                    .with_timezone(&Shanghai),
+                None => DateTime::<Tz>::MAX_UTC.with_timezone(&Shanghai),
+            }, // Product::Okx(o) => { /* OKX 实现 */ }
         }
     }
 
     pub fn order_support(&self, order_type: &OrderType) -> bool {
-        // 将 OrderType 转换为字符串进行比较
-        let order_type_str = match order_type {
-            OrderType::LIMIT => "LIMIT",
-            OrderType::MARKET => "MARKET",
-            OrderType::STOP => "STOP",
-            OrderType::STOP_MARKET => "STOP_MARKET",
-            OrderType::STOP_LOSS => "STOP_LOSS",
-            OrderType::STOP_LOSS_LIMIT => "STOP_LOSS_LIMIT",
-            OrderType::TAKE_PROFIT => "TAKE_PROFIT",
-            OrderType::TAKE_PROFIT_LIMIT => "TAKE_PROFIT_LIMIT",
-            OrderType::TAKE_PROFIT_MARKET => "TAKE_PROFIT_MARKET",
-            OrderType::TRAILING_STOP_MARKET => "TRAILING_STOP_MARKET",
-            OrderType::LIMIT_MAKER => "LIMIT_MAKER",
-        };
-        self.inner.orderTypes.contains(&order_type_str.to_string())
+        match self {
+            Product::Binance(b) => b.orderTypes.contains(&order_type.to_string()), // Product::Okx(o) => { /* OKX 实现 */ }
+        }
     }
 
     // 使用 TradingRules trait 的方法，更简洁
     pub fn max_prc(&self) -> f64 {
-        self.inner.max_price()
+        self.max_price()
     }
 
     pub fn min_prc(&self) -> f64 {
-        self.inner.min_price()
+        self.min_price()
     }
 
     pub fn tick_size(&self) -> f64 {
-        self.inner.tick_size()
+        TradingRules::tick_size(self)
     }
 
     pub fn lot(&self) -> f64 {
-        self.inner.lot_size()
+        self.lot_size()
     }
 
     pub fn min_notional(&self) -> f64 {
-        self.inner.min_notional()
+        TradingRules::min_notional(self)
     }
 }
 

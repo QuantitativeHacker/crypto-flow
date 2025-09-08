@@ -40,7 +40,7 @@ else
   fi
 fi
 
-echo "[info] Python : $(python --version 2>/dev/null || echo N/A)"
+echo "[info] Python : $(python3 --version 2>/dev/null || echo N/A)"
 echo "[info] Rust   : $(rustc --version 2>/dev/null || echo N/A)"
 echo "[info] Cargo  : $(cargo --version 2>/dev/null || echo N/A)"
 echo "[info] CC     : ${CC:-unset}"

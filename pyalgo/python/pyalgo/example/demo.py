@@ -36,7 +36,6 @@ class Demo:
         print(f"时间: {current_time}")
         print(f"时间类型: {type(current_time)}")
         print(f"时区: {getattr(current_time, 'tzinfo', 'None')}")
-        print(f"小时: {current_time.hour}, 分钟: {current_time.minute}")
         print(f"时间: {self.sub.datetime}, 标的: {self.sub.symbol}")
         print(f"当前持仓: {self.sub.net}")
         print(f"当前阶段: {self.sub.phase}")
