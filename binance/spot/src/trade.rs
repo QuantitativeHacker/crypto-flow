@@ -5,6 +5,10 @@ use binance::model::order::BinanceOrder;
 use binance::model::symbol::BinanceSymbol;
 use binance::model::{Event, ExecutionReport};
 use binance::*;
+use cryptoflow::chat::*;
+use cryptoflow::error_code::*;
+use cryptoflow::parser::Parser;
+use cryptoflow::position::PositionDB;
 use native_json::Deserialize;
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -13,10 +17,6 @@ use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, error, info, warn};
 use tungstenite::Message;
-use cryptoflow::chat::*;
-use cryptoflow::error_code::*;
-use cryptoflow::parser::Parser;
-use cryptoflow::position::PositionDB;
 
 async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, BinanceSymbol>> {
     let rsp = rest.get("/api/v3/exchangeInfo", &[], false).await?;
@@ -147,6 +147,7 @@ impl Trade for SpotTrade {
 
                                 match serde_json::to_string(&order) {
                                     Ok(s) => {
+                                        println!("send order result: {:?}", order);
                                         if let Err(e) = tx.send(Message::Text(s.into())) {
                                             error!("{}", e);
                                         }

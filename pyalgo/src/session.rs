@@ -171,7 +171,7 @@ impl Session {
             method: method.into(),
             params,
         };
-        info!("{:?}", req);
+        println!("send request {:?}", req);
         self.ws.send(req)?;
         self.id += 1;
 
@@ -293,6 +293,7 @@ impl Session {
             session_id: self.session_id,
         };
 
+        info!("Add order: {:?}", params);
         if let Ok(_) = self.send("order", params) {
             let order = Order::new(
                 id,
@@ -330,7 +331,6 @@ impl Session {
 
     fn process(&mut self) -> Option<Py<PyAny>> {
         if let Some(msg) = self.ws.read() {
-            info!("recv msg: {:?}", msg);
             return self.on_message(msg);
         }
 

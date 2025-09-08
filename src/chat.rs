@@ -77,16 +77,15 @@ pub struct GeneralKline {
 /// 订单信息
 #[derive(Debug, Serialize)]
 pub struct Order {
-    pub internal_id: u32,
     pub state: State,
     pub order_id: i64,
     pub symbol: String,
     pub side: Side,
-    pub type_: OrderType,
+    pub order_type: OrderType,
     pub tif: TimeInForce,
     pub price: f64,
     pub quantity: f64,
-
+    pub internal_id: u32,
     pub trade_time: i64,
     pub trade_price: f64,
     pub trade_quantity: f64,
@@ -100,7 +99,7 @@ impl Order {
         symbol: String,
         side: Side,
         state: State,
-        type_: OrderType,
+        order_type: OrderType,
         tif: TimeInForce,
         quantity: f64,
         price: f64,
@@ -110,7 +109,7 @@ impl Order {
             symbol,
             side,
             state,
-            type_,
+            order_type,
             tif,
             quantity,
             price,

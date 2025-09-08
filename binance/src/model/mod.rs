@@ -8,9 +8,9 @@ pub mod order;
 pub mod quote;
 pub mod symbol;
 
+use cryptoflow::chat::*;
 use native_json::json;
 use serde::{Deserialize, Deserializer, Serialize};
-use cryptoflow::chat::*;
 
 use crate::{
     model::{
@@ -209,7 +209,7 @@ impl From<ExecutionReport> for Order {
             order_id: value.i,
             symbol: value.s,
             side: value.S,
-            type_: value.o.parse().unwrap(),
+            order_type: value.o.parse().unwrap(),
             tif: value.f.parse().unwrap(),
             price: value.p.parse().unwrap_or_default(),
             quantity: value.q.parse().unwrap_or_default(),

@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use cryptoflow::chat::{OrderType, Side, TimeInForce};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BinanceOrder {
@@ -21,8 +21,8 @@ pub struct BinanceCancel {
 }
 
 pub mod usdt {
-    use serde::{Deserialize, Serialize};
     use cryptoflow::chat::{Side, State};
+    use serde::{Deserialize, Serialize};
 
     use super::super::deserialize_symbol;
     use crate::{Order, OrderTrait};
@@ -112,7 +112,7 @@ pub mod usdt {
                 order_id: o.i,
                 symbol: o.s,
                 side: o.S,
-                type_: o.o.parse().unwrap(),
+                order_type: o.o.parse().unwrap(),
                 tif: o.f.parse().unwrap(),
                 price: o.p.parse().unwrap_or_default(),
                 quantity: o.q.parse().unwrap_or_default(),

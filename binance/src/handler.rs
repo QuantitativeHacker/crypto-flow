@@ -9,12 +9,12 @@ use tokio::signal::unix::{signal, SignalKind};
 #[cfg(windows)]
 use tokio::signal::windows::{ctrl_break, ctrl_c};
 
+use cryptoflow::chat::{Login, PositionReq, PositionRsp, Request};
+use cryptoflow::parser::Parser;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::time::Duration;
 use tungstenite::Message;
 use websocket::Connection;
-use cryptoflow::chat::{Login, PositionReq, PositionRsp, Request};
-use cryptoflow::parser::Parser;
 
 pub struct Handler {
     // Python 策略客户端连接：addr -> (to_client_tx, from_client_rx)
@@ -189,7 +189,7 @@ impl Handler {
         trade: &mut T,
     ) -> anyhow::Result<()> {
         let req = parser.decode::<Request<BinanceOrder>>()?;
-        info!("{:?}", req);
+        info!("recv Order {:?}", req);
 
         trade.add_order(addr, &req.params)
     }

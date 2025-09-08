@@ -432,7 +432,6 @@ impl Event {
 #[gen_stub_pyclass]
 #[pyclass]
 pub struct Order {
-    time: i64,
     symbol: String,
     side: Side,
     state: State,
@@ -460,12 +459,7 @@ impl Order {
         order_type: OrderType,
         tif: Tif,
     ) -> Self {
-        let ts = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_millis() as i64;
         Self {
-            time: ts,
             price,
             quantity,
             symbol: symbol.into(),
@@ -491,17 +485,6 @@ impl Order {
 #[gen_stub_pymethods]
 #[pymethods]
 impl Order {
-    #[getter]
-    fn time(&self) -> i64 {
-        self.time
-    }
-    #[getter]
-    fn datetime(&self) -> String {
-        DateTime::from_timestamp_millis(self.time as i64)
-            .unwrap()
-            .with_timezone(&Shanghai)
-            .to_string()
-    }
     #[getter]
     fn symbol(&self) -> &str {
         &self.symbol
@@ -704,8 +687,7 @@ mod tests {
 
     #[test]
     fn test_order() {
-        let s = r#"{"time":1716433595260,
-                          "symbol":"dogeusdt",
+        let s = r#"{"symbol":"dogeusdt",    
                           "side":"SELL",
                           "state":"NEW",
                           "order_type":"LIMIT",
@@ -720,7 +702,6 @@ mod tests {
                           "acc":0.0,
                           "making":false}"#;
         let o = serde_json::from_str::<Order>(s).unwrap();
-        assert_eq!(o.time, 1716433595260);
         assert_eq!(o.side, Side::SELL);
         assert_eq!(o.state, State::NEW);
         assert_eq!(o.order_type, OrderType::LIMIT);
@@ -737,8 +718,7 @@ mod tests {
     }
     #[test]
     fn test_depth() {
-        let s = r#"{"time":1715093955172,
-                          "symbol":"btcusdt",
+        let s = r#"{"symbol":"btcusdt",
                           "stream":"btcusdt@depth",
                           "bids":[{"price":63972.8,"quantity":0.0},
                                   {"price":63972.7,"quantity":0.0},
