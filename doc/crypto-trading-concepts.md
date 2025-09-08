@@ -16,7 +16,7 @@
 8. [常见误区澄清](#常见误区澄清)
 
 ## 交易类型概览
-
+```
 加密货币交易
 ├── 现货交易 (Spot Trading)
 │   └── 杠杆交易 (Margin Trading)：实际上是加杠杆（借贷）交易现货
@@ -29,6 +29,7 @@
     ├── 算法交易 (Algo Trading)
     ├── 跟单交易 (Copy Trading)
     └── Alpha交易 (Alpha Trading)
+```
 
 ## 现货交易 (Spot Trading)
 
