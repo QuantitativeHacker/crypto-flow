@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# 一键配置和运行xcrypto项目 - 使用miniconda环境管理
+# 一键配置和运行cryptoflow项目 - 使用miniconda环境管理
 # 默认：使用Docker容器隔离环境（推荐）
 # 备选：使用本地miniconda环境
 # 用法:
-#   ./run_xcrypto.sh [spot|usdt] [--setup|--docker|--local|-f]
+#   ./run_cryptoflow.sh [spot|usdt] [--setup|--docker|--local|-f]
 # 示例:
-#   ./run_xcrypto.sh                    # 默认spot模式，自动选择Docker或本地
-#   ./run_xcrypto.sh usdt               # USDT期货模式
-#   ./run_xcrypto.sh spot --setup       # 配置本地miniconda环境
-#   ./run_xcrypto.sh spot --docker      # 强制使用Docker
-#   ./run_xcrypto.sh spot --local       # 强制使用本地环境
-#   ./run_xcrypto.sh spot -f            # 强制重新构建Docker镜像并运行
-#   ./run_xcrypto.sh usdt --docker -f   # USDT模式，强制重新构建
+#   ./run_cryptoflow.sh                    # 默认spot模式，自动选择Docker或本地
+#   ./run_cryptoflow.sh usdt               # USDT期货模式
+#   ./run_cryptoflow.sh spot --setup       # 配置本地miniconda环境
+#   ./run_cryptoflow.sh spot --docker      # 强制使用Docker
+#   ./run_cryptoflow.sh spot --local       # 强制使用本地环境
+#   ./run_cryptoflow.sh spot -f            # 强制重新构建Docker镜像并运行
+#   ./run_cryptoflow.sh usdt --docker -f   # USDT模式，强制重新构建
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
@@ -42,7 +42,7 @@ for arg in "$@"; do
       FORCE_REBUILD=true
       ;;
     --help|-h)
-      echo "xcrypto 一键运行脚本"
+      echo "cryptoflow 一键运行脚本"
       echo "用法: $0 [spot|usdt] [--setup|--docker|--local|-f|--help]"
       echo ""
       echo "模式:"
@@ -83,7 +83,7 @@ if [[ ! -f "$PEM_FILE" ]]; then
 fi
 
 CONFIG_BASENAME="$(basename "$CONFIG_JSON")"
-ENV_NAME="xcrypto"
+ENV_NAME="cryptoflow"
 
 # 检查conda是否可用
 check_conda() {
@@ -144,7 +144,7 @@ setup_local_environment() {
 run_in_docker() {
   echo "[信息] 使用Docker容器运行 (推荐，环境隔离)"
   
-  IMAGE_NAME="xcrypto-dev:latest"
+  IMAGE_NAME="cryptoflow-dev:latest"
   
   # 检查是否需要强制重新构建
   if [[ "$FORCE_REBUILD" == true ]]; then
@@ -179,8 +179,8 @@ run_in_docker() {
   docker run --rm -it \
     -p 8111:8111 \
     -v "$SCRIPT_DIR":/app \
-    -v xcrypto-cargo-cache:/usr/local/cargo/registry \
-    -v xcrypto-target-cache:/app/target \
+    -v cryptoflow-cargo-cache:/usr/local/cargo/registry \
+    -v cryptoflow-target-cache:/app/target \
     -w /app \
     "$IMAGE_NAME" \
     bash -c "set -e; \
@@ -210,7 +210,7 @@ run_locally() {
     exit 1
   fi
 
-  # 检查xcrypto环境是否存在
+  # 检查cryptoflow环境是否存在
   if ! conda env list | grep -q "^$ENV_NAME "; then
     echo "[错误] conda环境 '$ENV_NAME' 不存在"
     echo "请运行: $0 --setup 来创建环境"

@@ -27,7 +27,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --help|-h)
-      echo "xcrypto 策略运行脚本"
+      echo "cryptoflow 策略运行脚本"
       echo "用法: $0 [--local|--docker] <策略文件> [策略参数...]"
       echo ""
       echo "选项:"
@@ -59,8 +59,8 @@ fi
 
 echo "🔍 正在查找运行环境..."
 
-# 查找运行中的 xcrypto 容器（新的镜像名）
-CONTAINER_ID=$(docker ps --filter "ancestor=xcrypto-dev" --format "{{.ID}}" | head -1)
+# 查找运行中的 cryptoflow 容器（新的镜像名）
+CONTAINER_ID=$(docker ps --filter "ancestor=cryptoflow-dev" --format "{{.ID}}" | head -1)
 
 # 决定运行方式
 RUN_IN_DOCKER=false
@@ -72,7 +72,7 @@ elif [[ -n "$CONTAINER_ID" ]]; then
   echo "✅ 找到运行中的容器: $CONTAINER_ID"
   RUN_IN_DOCKER=true
 else
-  echo "❌ 没有找到运行中的 xcrypto 容器"
+  echo "❌ 没有找到运行中的 cryptoflow 容器"
   echo "💡 将使用本地conda环境运行"
   RUN_IN_DOCKER=false
 fi
@@ -107,7 +107,7 @@ if [[ "$RUN_IN_DOCKER" == "true" ]]; then
     ARGS_STR="${EXTRA_ARGS[*]}"
     docker exec -it "$CONTAINER_ID" bash -c "
       echo '🐍 Python 版本:'
-      source activate xcrypto
+      source activate cryptoflow
       python --version
       echo '📦 conda环境:'
       conda info --envs | grep '*'
@@ -123,7 +123,7 @@ if [[ "$RUN_IN_DOCKER" == "true" ]]; then
   else
     docker exec -it "$CONTAINER_ID" bash -c "
       echo '🐍 Python 版本:'
-      source activate xcrypto
+      source activate cryptoflow
       python --version
       echo '📦 conda环境:'
       conda info --envs | grep '*'
@@ -148,21 +148,21 @@ else
     elif [[ -f "$HOME/anaconda3/bin/conda" ]]; then
       export PATH="$HOME/anaconda3/bin:$PATH"
     else
-      echo "❌ 未找到conda。请运行 ./run_xcrypto.sh --setup 配置环境"
+      echo "❌ 未找到conda。请运行 ./run_cryptoflow.sh --setup 配置环境"
       exit 1
     fi
   fi
   
-  # 检查xcrypto环境是否存在
-  if ! conda env list | grep -q "^xcrypto "; then
-    echo "❌ conda环境 'xcrypto' 不存在"
-    echo "请运行: ./run_xcrypto.sh --setup 来创建环境"
+  # 检查cryptoflow环境是否存在
+  if ! conda env list | grep -q "^cryptoflow "; then
+    echo "❌ conda环境 'cryptoflow' 不存在"
+    echo "请运行: ./run_cryptoflow.sh --setup 来创建环境"
     exit 1
   fi
   
-  echo "📦 激活conda环境: xcrypto"
+  echo "📦 激活conda环境: cryptoflow"
   eval "$(conda shell.bash hook)"
-  conda activate xcrypto
+  conda activate cryptoflow
   
   echo "🐍 Python 版本: $(python --version)"
   echo "📦 pyalgo 可用性检查:"

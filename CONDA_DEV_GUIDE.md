@@ -1,27 +1,27 @@
-# xcrypto Conda 开发指南
+# cryptoflow Conda 开发指南
 
 ## 概述
 
-在local模式下，xcrypto项目完全使用conda来管理Python、Rust、以及所有系统依赖，避免污染主机环境。
+在local模式下，cryptoflow项目完全使用conda来管理Python、Rust、以及所有系统依赖，避免污染主机环境。
 
 ## 🚀 快速开始
 
 ### 1. 一键环境配置
 ```bash
 # 首次使用 - 自动配置conda环境
-./run_xcrypto.sh --setup
+./run_cryptoflow.sh --setup
 ```
 
 这个命令会：
 - 检测并配置conda路径
-- 创建名为 `xcrypto` 的conda环境
+- 创建名为 `cryptoflow` 的conda环境
 - 安装所有依赖（Python、Rust、系统库等）
 
 ### 2. 日常开发使用
 ```bash
 # 使用conda环境运行项目
-./run_xcrypto.sh spot --local
-./run_xcrypto.sh usdt --local
+./run_cryptoflow.sh spot --local
+./run_cryptoflow.sh usdt --local
 ```
 
 ## 🔧 Conda环境详解
@@ -30,7 +30,7 @@
 项目使用 `environment.yml` 定义conda环境：
 
 ```yaml
-name: xcrypto
+name: cryptoflow
 channels:
   - conda-forge
   - defaults
@@ -51,17 +51,17 @@ dependencies:
 
 ```bash
 # 激活环境（开发时使用）
-conda activate xcrypto
+conda activate cryptoflow
 
 # 查看环境信息
 conda info --envs
 conda list
 
 # 更新环境
-conda env update -n xcrypto -f environment.yml
+conda env update -n cryptoflow -f environment.yml
 
 # 删除环境（重新开始）
-conda env remove -n xcrypto
+conda env remove -n cryptoflow
 ```
 
 ## 🛠 开发工作流
@@ -69,16 +69,16 @@ conda env remove -n xcrypto
 ### 方式1: 通过脚本开发（推荐）
 ```bash
 # 修改代码后，直接运行
-./run_xcrypto.sh spot --local  # 自动编译和运行
+./run_cryptoflow.sh spot --local  # 自动编译和运行
 ```
 
 ### 方式2: 手动激活环境开发
 ```bash
 # 激活conda环境
-conda activate xcrypto
+conda activate cryptoflow
 
 # 手动编译Rust代码
-cd xcrypto/binance/spot
+cd cryptoflow/binance/spot
 cargo build --release
 
 # 编译Python扩展
@@ -93,10 +93,10 @@ cd ..
 ## 📁 开发环境结构
 
 ```
-xcrypto/
+cryptoflow/
 ├── environment.yml          # conda环境定义
 ├── requirements.txt         # pip依赖
-├── run_xcrypto.sh          # 一键运行脚本
+├── run_cryptoflow.sh          # 一键运行脚本
 ├── spot.json           # 配置文件
 ├── private_key.pem     # 私钥文件
 ├── binance/            # Rust代码
@@ -109,10 +109,10 @@ xcrypto/
 ### 1. 检查环境状态
 ```bash
 # 快速检查
-./run_xcrypto.sh --local
+./run_cryptoflow.sh --local
 
 # 详细环境信息
-conda activate xcrypto
+conda activate cryptoflow
 which python
 which cargo
 conda list | grep -E "(rust|python|maturin)"
@@ -120,15 +120,15 @@ conda list | grep -E "(rust|python|maturin)"
 
 ### 2. 增量编译
 ```bash
-conda activate xcrypto
-cd xcrypto/binance/spot
+conda activate cryptoflow
+cd cryptoflow/binance/spot
 cargo build --release  # 只编译changed的部分
 ```
 
 ### 3. Python扩展开发
 ```bash
-conda activate xcrypto
-cd xcrypto/pyalgo
+conda activate cryptoflow
+cd cryptoflow/pyalgo
 maturin develop --release  # 重新编译Python扩展
 python -c "import pyalgo; print(pyalgo.__file__)"  # 验证
 ```
@@ -136,14 +136,14 @@ python -c "import pyalgo; print(pyalgo.__file__)"  # 验证
 ### 4. 依赖管理
 ```bash
 # 添加新的conda包
-conda install -n xcrypto new-package
+conda install -n cryptoflow new-package
 
 # 添加新的pip包
-conda activate xcrypto
+conda activate cryptoflow
 pip install new-package
 
 # 导出当前环境（更新environment.yml）
-conda env export -n xcrypto > environment.yml
+conda env export -n cryptoflow > environment.yml
 ```
 
 ## 🚨 常见问题
@@ -160,29 +160,29 @@ conda env export -n xcrypto > environment.yml
 **A:** 
 ```bash
 # 清理并重新创建
-conda env remove -n xcrypto
-./run_xcrypto.sh --setup
+conda env remove -n cryptoflow
+./run_cryptoflow.sh --setup
 ```
 
 ### Q: Rust编译失败
 **A:** 确保conda环境中包含必要的系统库：
 ```bash
-conda activate xcrypto
+conda activate cryptoflow
 conda install pkg-config openssl sqlite
 ```
 
 ### Q: 想要使用不同的Python版本
 **A:** 修改 `environment.yml` 中的Python版本，然后重新创建环境：
 ```bash
-conda env remove -n xcrypto
-./run_xcrypto.sh --setup
+conda env remove -n cryptoflow
+./run_cryptoflow.sh --setup
 ```
 
 ## 🎯 性能优化
 
 ### 1. 并行编译
 ```bash
-conda activate xcrypto
+conda activate cryptoflow
 export CARGO_BUILD_JOBS=$(nproc)  # 使用所有CPU核心
 ```
 

@@ -3,7 +3,7 @@ set -euo pipefail
 
 # 可在任意终端执行：
 #   source scripts/pyenv.sh
-# 作用：确保使用 xcrypto conda 环境，并为 pyo3 设置一致的编译/运行环境
+# 作用：确保使用 cryptoflow conda 环境，并为 pyo3 设置一致的编译/运行环境
 
 # 启用 conda shell 钩子（尽量兼容 bash/zsh）
 if command -v conda >/dev/null 2>&1; then
@@ -16,9 +16,9 @@ if command -v conda >/dev/null 2>&1; then
   fi
 fi
 
-# 激活 xcrypto 环境（不存在则忽略）
+# 激活 cryptoflow 环境（不存在则忽略）
 if command -v conda >/dev/null 2>&1; then
-  conda activate xcrypto 2>/dev/null || true
+  conda activate cryptoflow 2>/dev/null || true
 fi
 
 # 绑定 pyo3 的 Python 解释器

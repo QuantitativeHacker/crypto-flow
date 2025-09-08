@@ -1,8 +1,8 @@
-# xcrypto
+# cryptoflow
 
 [![MIT licensed](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE-MIT)
 
-xcrypto is a trading system with a Client/Server architecture. It is implemented based on rust tokio and can support up to 65536 strategies running simultaneously. It communicates with strategies using WebSocket, automates trading by forwarding exchange quotes, accepting order requests from strategies, and distributing order returns from exchanges. This project mainly consists of two subprojects: the **trading system** and the **strategy package**. The trading system implements Binance's spot trading and usdt future trading. The strategy package is implemented using Rust and Python, strategies can written entirely in python.
+cryptoflow is a trading system with a Client/Server architecture. It is implemented based on rust tokio and can support up to 65536 strategies running simultaneously. It communicates with strategies using WebSocket, automates trading by forwarding exchange quotes, accepting order requests from strategies, and distributing order returns from exchanges. This project mainly consists of two subprojects: the **trading system** and the **strategy package**. The trading system implements Binance's spot trading and usdt future trading. The strategy package is implemented using Rust and Python, strategies can written entirely in python.
 
 ## Implement strategy
 
@@ -95,7 +95,7 @@ pip install maturin
 
 This project consists of two subprojects. One is a Rust binary project, which serves as a bridge between trading strategies and the exchange. The other is a hybrid project of Rust and Python, which aims to provide convenience for implementing strategies.
 
-![xcrypto](static/xcrypto.svg)
+![cryptoflow](static/cryptoflow.svg)
 
 An important concept is **Session**. Each Session represents an instance of a strategy. At any given time, a session can only be used by one strategy. The distribution of orders and the recording of positions are differentiated based on the session.
 
@@ -122,7 +122,7 @@ The supported market data includes depth and kline data for all periods, which i
 ### Spot
 
 ```shell
-➜  ~ cd xcrypto
+➜  ~ cd cryptoflow
 ➜  ~ ls
 ➜  ~ Cargo.lock  Cargo.toml  binance  logger  private_key.pem  pyalgo  spot.json  src  usdt.json
 ➜  ~ cd binance/spot
@@ -144,7 +144,7 @@ You will find the binary file in target/debug or targer/release
 ### USDT future
 
 ```shell
-➜  ~ cd xcrypto
+➜  ~ cd cryptoflow
 ➜  ~ ls
 ➜  ~ Cargo.lock  Cargo.toml  binance  logger  private_key.pem  pyalgo  spot.json  src  usdt.json
 ➜  ~ cd binance/usdt
@@ -247,7 +247,7 @@ sub = ssession.subscribe("btcusdt","kline:1m")
 
 
 ```shell
-➜  ~ cd xcrypto
+➜  ~ cd cryptoflow
 ➜  ~ ls
 ➜  ~ Cargo.lock  Cargo.toml  binance  logger  private_key.pem  pyalgo  spot.json  src  usdt.json
 ➜  ~ cd pyalgo
@@ -359,5 +359,4 @@ if __name__ == "__main__":
 ```
 
 ## Thanks
-
-Thank [initial xcrypto project](https://github.com/Bohr1005/xcrypto)!
+This project is built on [xcrypto project](https://github.com/Bohr1005/xcrypto), but there are a lot of refactor and second development. Thanks for the project!

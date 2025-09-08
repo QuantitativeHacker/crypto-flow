@@ -1,7 +1,7 @@
 # 开发友好：纯 conda（Miniconda）基础镜像
 FROM continuumio/miniconda3:24.5.0-0
 
-ARG ENV_NAME=xcrypto
+ARG ENV_NAME=cryptoflow
 WORKDIR /app
 
 # 安装系统构建工具和SSL开发库
@@ -29,6 +29,6 @@ RUN source activate ${ENV_NAME} && \
     cd pyalgo && maturin develop --release
 
 # 默认进入交互 shell，确保环境激活
-CMD ["bash", "-lc", "source activate xcrypto && bash"]
+CMD ["bash", "-lc", "source activate cryptoflow && bash"]
 
 

@@ -2,7 +2,7 @@ use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc::UnboundedSender;
 use tungstenite::Message;
-use xcrypto::chat::{ErrorResponse, Response};
+use cryptoflow::chat::{ErrorResponse, Response};
 pub struct Subscriber {
     symbols: HashSet<String>,
     tx: UnboundedSender<Message>,

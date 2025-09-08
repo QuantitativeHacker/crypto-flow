@@ -10,7 +10,7 @@ pub mod symbol;
 
 use native_json::json;
 use serde::{Deserialize, Deserializer, Serialize};
-use xcrypto::chat::*;
+use cryptoflow::chat::*;
 
 use crate::{
     model::{

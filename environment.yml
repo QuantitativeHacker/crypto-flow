@@ -1,4 +1,4 @@
-name: xcrypto
+name: cryptoflow
 channels:
   - conda-forge
 dependencies:

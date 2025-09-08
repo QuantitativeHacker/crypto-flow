@@ -2,7 +2,7 @@
 //! see: https://developers.binance.com/docs/zh-CN/binance-spot-api-docs/websocket-api/market-data-requests#%E8%AE%A2%E5%8D%95%E8%96%84%E6%B7%B1%E5%BA%A6%E4%BF%A1%E6%81%AF
 
 use serde::{Deserialize, Serialize};
-use xcrypto::chat::GeneralDepth;
+use cryptoflow::chat::GeneralDepth;
 
 use crate::model::quote::BinanceQuote;
 

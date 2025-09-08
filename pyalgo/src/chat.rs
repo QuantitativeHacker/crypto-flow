@@ -6,7 +6,7 @@ use pyo3::{conversion::IntoPyObject, IntoPyObjectExt};
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyclass_enum, gen_stub_pymethods};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashSet;
-use xcrypto::chat::{ErrorResponse, LoginResponse, Response, Success};
+use cryptoflow::chat::{ErrorResponse, LoginResponse, Response, Success};
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct Quote {

@@ -1,7 +1,7 @@
 //! see: https://developers.binance.com/docs/zh-CN/binance-spot-api-docs/testnet/web-socket-streams#klinecandlestick-streams-for-utc
 
 use serde::{Deserialize, Serialize};
-use xcrypto::chat::GeneralKline;
+use cryptoflow::chat::GeneralKline;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BinanceKline {

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use tracing::{error, info};
 use trade::SpotTrade;
 use websocket::Credentials;
-use xcrypto::init_tracing;
+use cryptoflow::init_tracing;
 
 #[derive(Debug, Deserialize)]
 struct Config {

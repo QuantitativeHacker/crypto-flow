@@ -13,10 +13,10 @@ use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, error, info, warn};
 use tungstenite::Message;
-use xcrypto::chat::*;
-use xcrypto::error_code::*;
-use xcrypto::parser::Parser;
-use xcrypto::position::PositionDB;
+use cryptoflow::chat::*;
+use cryptoflow::error_code::*;
+use cryptoflow::parser::Parser;
+use cryptoflow::position::PositionDB;
 
 async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, BinanceSymbol>> {
     let rsp = rest.get("/api/v3/exchangeInfo", &[], false).await?;
@@ -132,7 +132,7 @@ impl Trade for SpotTrade {
                     {
                         Ok(rsp) => {
                             // exchange rej
-                            if let Ok(e) = rsp.json::<xcrypto::chat::Error>().await {
+                            if let Ok(e) = rsp.json::<cryptoflow::chat::Error>().await {
                                 error!("{:?}", e);
                                 let order = Order::new(
                                     id,

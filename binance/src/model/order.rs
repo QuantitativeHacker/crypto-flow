@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use xcrypto::chat::{OrderType, Side, TimeInForce};
+use cryptoflow::chat::{OrderType, Side, TimeInForce};
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct BinanceOrder {
@@ -22,7 +22,7 @@ pub struct BinanceCancel {
 
 pub mod usdt {
     use serde::{Deserialize, Serialize};
-    use xcrypto::chat::{Side, State};
+    use cryptoflow::chat::{Side, State};
 
     use super::super::deserialize_symbol;
     use crate::{Order, OrderTrait};

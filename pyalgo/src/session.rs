@@ -11,7 +11,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
 use std::vec;
-use xcrypto::chat::{Error, Login, LoginResponse, PositionReq, Request, Response};
+use cryptoflow::chat::{Error, Login, LoginResponse, PositionReq, Request, Response};
 
 #[gen_stub_pyclass]
 #[pyclass(unsendable)]
