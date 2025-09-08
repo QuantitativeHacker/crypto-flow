@@ -3,6 +3,7 @@ use crate::subscription::Subscription;
 use crate::ws::WebSocketClient;
 use crate::{constant::*, Order, PositionRsp};
 use crate::{Event, Position};
+use cryptoflow::chat::{Error, Login, LoginResponse, PositionReq, Request, Response};
 use log::*;
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
@@ -11,7 +12,6 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Debug;
 use std::time::{Duration, Instant};
 use std::vec;
-use cryptoflow::chat::{Error, Login, LoginResponse, PositionReq, Request, Response};
 
 #[gen_stub_pyclass]
 #[pyclass(unsendable)]
@@ -330,7 +330,7 @@ impl Session {
 
     fn process(&mut self) -> Option<Py<PyAny>> {
         if let Some(msg) = self.ws.read() {
-            debug!("recv msg: {:?}", msg);
+            info!("recv msg: {:?}", msg);
             return self.on_message(msg);
         }
 

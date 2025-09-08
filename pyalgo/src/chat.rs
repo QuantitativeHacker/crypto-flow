@@ -1,12 +1,13 @@
 use crate::constant::*;
+use binance::model::symbol::BinanceSymbol;
 use chrono::DateTime;
 use chrono_tz::{Asia::Shanghai, Tz};
+use cryptoflow::chat::{ErrorResponse, LoginResponse, Response, Success};
+use cryptoflow::trading_rules::TradingRules;
 use pyo3::prelude::*;
 use pyo3::{conversion::IntoPyObject, IntoPyObjectExt};
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pyclass_enum, gen_stub_pymethods};
 use serde::{Deserialize, Deserializer, Serialize};
-use std::collections::HashSet;
-use cryptoflow::chat::{ErrorResponse, LoginResponse, Response, Success};
 
 #[derive(Debug, Deserialize, PartialEq)]
 struct Quote {
@@ -227,32 +228,19 @@ impl Kline {
 }
 
 #[derive(Debug, Deserialize)]
-struct Size {
-    size: f64,
-    max: f64,
-    min: f64,
-}
-
-#[derive(Debug, Deserialize)]
 pub struct Product {
-    symbol: String,
-    delivery: Option<i64>,
-    onboard: Option<i64>,
-    order: HashSet<OrderType>,
-    tif: Option<HashSet<Tif>>,
-    price_filter: Size,
-    lot_size: Size,
-    min_notional: f64,
+    #[serde(flatten)]
+    inner: BinanceSymbol,
 }
 
 impl Product {
     pub fn symbol(&self) -> &String {
-        &self.symbol
+        self.inner.symbol()
     }
 
     pub fn delivery(&self) -> DateTime<Tz> {
-        match self.delivery {
-            Some(delivery) => DateTime::from_timestamp_millis(delivery)
+        match self.inner.deliveryDate {
+            Some(delivery) => DateTime::from_timestamp_millis(delivery as i64)
                 .unwrap()
                 .with_timezone(&Shanghai),
             None => DateTime::<Tz>::MAX_UTC.with_timezone(&Shanghai),
@@ -260,8 +248,8 @@ impl Product {
     }
 
     pub fn onboard(&self) -> DateTime<Tz> {
-        match self.onboard {
-            Some(onboard) => DateTime::from_timestamp_millis(onboard)
+        match self.inner.onboardDate {
+            Some(onboard) => DateTime::from_timestamp_millis(onboard as i64)
                 .unwrap()
                 .with_timezone(&Shanghai),
             None => DateTime::<Tz>::MAX_UTC.with_timezone(&Shanghai),
@@ -269,34 +257,42 @@ impl Product {
     }
 
     pub fn order_support(&self, order_type: &OrderType) -> bool {
-        self.order.contains(order_type)
+        // 将 OrderType 转换为字符串进行比较
+        let order_type_str = match order_type {
+            OrderType::LIMIT => "LIMIT",
+            OrderType::MARKET => "MARKET",
+            OrderType::STOP => "STOP",
+            OrderType::STOP_MARKET => "STOP_MARKET",
+            OrderType::STOP_LOSS => "STOP_LOSS",
+            OrderType::STOP_LOSS_LIMIT => "STOP_LOSS_LIMIT",
+            OrderType::TAKE_PROFIT => "TAKE_PROFIT",
+            OrderType::TAKE_PROFIT_LIMIT => "TAKE_PROFIT_LIMIT",
+            OrderType::TAKE_PROFIT_MARKET => "TAKE_PROFIT_MARKET",
+            OrderType::TRAILING_STOP_MARKET => "TRAILING_STOP_MARKET",
+            OrderType::LIMIT_MAKER => "LIMIT_MAKER",
+        };
+        self.inner.orderTypes.contains(&order_type_str.to_string())
     }
 
-    pub fn tif_support(&self, tif: &Tif) -> bool {
-        match &self.tif {
-            Some(inner) => inner.contains(tif),
-            None => true,
-        }
-    }
-
+    // 使用 TradingRules trait 的方法，更简洁
     pub fn max_prc(&self) -> f64 {
-        self.price_filter.max
+        self.inner.max_price()
     }
 
     pub fn min_prc(&self) -> f64 {
-        self.price_filter.min
+        self.inner.min_price()
     }
 
     pub fn tick_size(&self) -> f64 {
-        self.price_filter.size
+        self.inner.tick_size()
     }
 
     pub fn lot(&self) -> f64 {
-        self.lot_size.size
+        self.inner.lot_size()
     }
 
     pub fn min_notional(&self) -> f64 {
-        self.min_notional
+        self.inner.min_notional()
     }
 }
 

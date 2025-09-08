@@ -1,8 +1,8 @@
+use cryptoflow::chat::{ErrorResponse, Response};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc::UnboundedSender;
 use tungstenite::Message;
-use cryptoflow::chat::{ErrorResponse, Response};
 pub struct Subscriber {
     symbols: HashSet<String>,
     tx: UnboundedSender<Message>,
@@ -46,6 +46,7 @@ impl Subscriber {
     }
 
     pub fn forward(&self, data: &String) -> anyhow::Result<()> {
+        tracing::info!("forward data: {:?}", data);
         self.tx.send(Message::Text(data.clone().into()))?;
         Ok(())
     }

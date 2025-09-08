@@ -1,6 +1,8 @@
 use crate::model::quote::BinanceQuote;
 use crate::model::{Event, MarketStream};
 use crate::{Subscriber, Trade};
+use cryptoflow::parser::Parser;
+use cryptoflow::{chat::*, error_code::*};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::net::SocketAddr;
@@ -10,8 +12,6 @@ use tokio::time::Duration;
 use tracing::{debug, error, info};
 use tungstenite::Message;
 use websocket::{BinanceProtocol, WebsocketClient};
-use cryptoflow::parser::Parser;
-use cryptoflow::{chat::*, error_code::*};
 pub struct Market {
     txs: HashMap<SocketAddr, UnboundedSender<Message>>,
     subscribers: HashMap<SocketAddr, Subscriber>,
@@ -84,7 +84,7 @@ impl Market {
                 result: result,
             };
 
-            debug!("{:?}", response);
+            tracing::info!("response!: {:?}", response);
             let rsp = Message::Text(serde_json::to_string(&response)?.into());
             tx.send(rsp)?;
         }

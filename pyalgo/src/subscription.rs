@@ -1,4 +1,4 @@
-use crate::{chat::Product, phase::TradingPhase, OrderType, Phase, Position, Tif};
+use crate::{chat::Product, phase::TradingPhase, OrderType, Phase, Position};
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
 use rust_decimal::prelude::*;
@@ -79,10 +79,6 @@ impl Subscription {
 
     pub fn order_support(&self, order_type: &OrderType) -> bool {
         self.product.order_support(order_type)
-    }
-
-    pub fn tif_support(&self, tif: &Tif) -> bool {
-        self.product.tif_support(tif)
     }
 
     pub fn floor_to_lot_size(&self, vol: f64) -> f64 {

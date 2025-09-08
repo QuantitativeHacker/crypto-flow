@@ -1,17 +1,18 @@
-use serde::{ser::SerializeStruct, Deserialize, Serialize, Serializer};
+use cryptoflow::trading_rules::TradingRules;
+use serde::{Deserialize, Serialize};
 
 use super::deserialize_symbol;
 use crate::model::filter::FilterField;
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
 pub enum ConctactStatus {
     TRADING,
     HALT,
     BREAK,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[allow(non_snake_case)]
 pub struct BinanceSymbol {
     #[serde(deserialize_with = "deserialize_symbol")]
@@ -46,69 +47,92 @@ pub struct BinanceSymbol {
     pub onboardDate: Option<u64>, // 上线日期
 }
 
-impl Serialize for BinanceSymbol {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        #[derive(Serialize)]
-        struct Size {
-            size: f64,
-            max: f64,
-            min: f64,
-        }
+// impl Serialize for BinanceSymbol {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         let mut state = serializer.serialize_struct("BinanceSymbol", 5)?;
+//         state.serialize_field("symbol", &self.symbol.to_lowercase())?;
+//         state.serialize_field("delivery", &self.deliveryDate)?;
+//         state.serialize_field("onboard", &self.onboardDate)?;
+//         state.serialize_field("order", &self.orderTypes)?;
+//         state.serialize_field("filters", &self.filters)?;
+//         state.end()
+//     }
+// }
 
-        let mut state = serializer.serialize_struct("BinanceSymbol", 5)?;
-        state.serialize_field("symbol", &self.symbol.to_lowercase())?;
-        state.serialize_field("delivery", &self.deliveryDate)?;
-        state.serialize_field("onboard", &self.onboardDate)?;
-        state.serialize_field("order", &self.orderTypes)?;
+impl TradingRules for BinanceSymbol {
+    fn symbol(&self) -> &String {
+        &self.symbol
+    }
 
-        for filter in self.filters.iter() {
-            match filter {
-                FilterField::PRICE_FILTER {
-                    tick_size,
-                    max_price,
-                    min_price,
-                } => {
-                    state.serialize_field(
-                        "price_filter",
-                        &Size {
-                            size: tick_size.parse::<f64>().unwrap_or(0.0),
-                            max: max_price.parse::<f64>().unwrap_or(0.0),
-                            min: min_price.parse::<f64>().unwrap_or(0.0),
-                        },
-                    )?;
-                }
-                FilterField::LOT_SIZE {
-                    step_size,
-                    max_qty,
-                    min_qty,
-                } => {
-                    state.serialize_field(
-                        "lot_size",
-                        &Size {
-                            size: step_size.parse::<f64>().unwrap_or(0.0),
-                            max: max_qty.parse::<f64>().unwrap_or(0.0),
-                            min: min_qty.parse::<f64>().unwrap_or(0.0),
-                        },
-                    )?;
-                }
-                FilterField::NOTIONAL { min_notional, .. } => {
-                    state.serialize_field(
-                        "min_notional",
-                        &min_notional.parse::<f64>().unwrap_or(0.0),
-                    )?;
-                }
-                FilterField::MIN_NOTIONAL { min_notional, .. } => {
-                    state.serialize_field(
-                        "min_notional",
-                        &min_notional.parse::<f64>().unwrap_or(0.0),
-                    )?;
-                }
-                _ => (),
+    fn min_price(&self) -> f64 {
+        for filter in &self.filters {
+            if let FilterField::PRICE_FILTER { min_price, .. } = filter {
+                return min_price.parse::<f64>().unwrap_or(0.0);
             }
         }
-        state.end()
+        0.0
+    }
+
+    fn max_price(&self) -> f64 {
+        for filter in &self.filters {
+            if let FilterField::PRICE_FILTER { max_price, .. } = filter {
+                return max_price.parse::<f64>().unwrap_or(f64::MAX);
+            }
+        }
+        f64::MAX
+    }
+
+    fn tick_size(&self) -> f64 {
+        for filter in &self.filters {
+            if let FilterField::PRICE_FILTER { tick_size, .. } = filter {
+                return tick_size.parse::<f64>().unwrap_or(0.0);
+            }
+        }
+        0.0
+    }
+
+    fn min_quantity(&self) -> f64 {
+        for filter in &self.filters {
+            if let FilterField::LOT_SIZE { min_qty, .. } = filter {
+                return min_qty.parse::<f64>().unwrap_or(0.0);
+            }
+        }
+        0.0
+    }
+
+    fn max_quantity(&self) -> f64 {
+        for filter in &self.filters {
+            if let FilterField::LOT_SIZE { max_qty, .. } = filter {
+                return max_qty.parse::<f64>().unwrap_or(f64::MAX);
+            }
+        }
+        f64::MAX
+    }
+
+    fn lot_size(&self) -> f64 {
+        for filter in &self.filters {
+            if let FilterField::LOT_SIZE { step_size, .. } = filter {
+                return step_size.parse::<f64>().unwrap_or(0.0);
+            }
+        }
+        0.0
+    }
+
+    fn min_notional(&self) -> f64 {
+        for filter in &self.filters {
+            match filter {
+                FilterField::MIN_NOTIONAL { min_notional, .. } => {
+                    return min_notional.parse::<f64>().unwrap_or(0.0);
+                }
+                FilterField::NOTIONAL { min_notional, .. } => {
+                    return min_notional.parse::<f64>().unwrap_or(0.0);
+                }
+                _ => continue,
+            }
+        }
+        0.0
     }
 }

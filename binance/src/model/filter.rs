@@ -1,10 +1,13 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 #[serde(tag = "filterType")]
 #[allow(non_camel_case_types, unused)]
 pub enum FilterField {
-    // 价格过滤器 - 定义价格规则
+    // 下面是针对交易对的过滤器symbol filters
+    // ==============================================================
+    /// 价格过滤器 - 定义价格规则
+    /// spot, margin, futures
     PRICE_FILTER {
         #[serde(rename = "tickSize")]
         tick_size: String, // 价格增减的最小单位
@@ -14,7 +17,8 @@ pub enum FilterField {
         min_price: String, // 最小价格
     },
 
-    // 百分比价格过滤器 - 基于平均价格的百分比范围
+    /// 百分比价格过滤器 - 基于平均价格的百分比范围
+    /// spot, margin, futures
     PERCENT_PRICE {
         #[serde(rename = "multiplierUp")]
         multiplier_up: String, // 价格上限倍数
@@ -24,7 +28,8 @@ pub enum FilterField {
         avg_price_mins: i32, // 平均价格计算分钟数
     },
 
-    // 按方向百分比价格过滤器 - 买卖方向不同的价格范围
+    /// 按方向百分比价格过滤器 - 买卖方向不同的价格范围
+    /// spot, margin
     PERCENT_PRICE_BY_SIDE {
         #[serde(rename = "bidMultiplierUp")]
         bid_multiplier_up: String, // 买单价格上限倍数
@@ -38,7 +43,8 @@ pub enum FilterField {
         avg_price_mins: i32, // 平均价格计算分钟数
     },
 
-    // 数量过滤器 - 定义数量规则
+    /// 数量过滤器 - 定义数量规则
+    /// spot, margin, futures
     LOT_SIZE {
         #[serde(rename = "stepSize")]
         step_size: String, // 数量增减的最小单位
@@ -47,18 +53,8 @@ pub enum FilterField {
         #[serde(rename = "minQty")]
         min_qty: String, // 最小数量
     },
-
-    // 市价单数量过滤器 - 市价单的数量规则
-    MARKET_LOT_SIZE {
-        #[serde(rename = "stepSize")]
-        step_size: String, // 数量增减的最小单位
-        #[serde(rename = "maxQty")]
-        max_qty: String, // 最大数量
-        #[serde(rename = "minQty")]
-        min_qty: String, // 最小数量
-    },
-
-    // 最小名义价值过滤器 - 订单的最小名义价值
+    /// 最小名义价值过滤器 - 订单的最小名义价值
+    /// spot, margin, futures
     MIN_NOTIONAL {
         #[serde(rename = "minNotional")]
         min_notional: String, // 最小名义价值
@@ -68,7 +64,8 @@ pub enum FilterField {
         avg_price_mins: i32, // 平均价格计算分钟数
     },
 
-    // 名义价值过滤器 - 订单的名义价值范围
+    /// 名义价值过滤器 - 订单的名义价值范围
+    /// spot, margin
     NOTIONAL {
         #[serde(rename = "minNotional")]
         min_notional: String, // 最小名义价值
@@ -82,36 +79,53 @@ pub enum FilterField {
         avg_price_mins: i32, // 平均价格计算分钟数
     },
 
-    // 冰山订单部分过滤器 - 冰山订单的最大部分数
+    /// 冰山订单部分过滤器 - 冰山订单的最大部分数
+    /// spot, margin
     ICEBERG_PARTS {
         limit: i32, // 最大部分数
     },
 
-    // 最大订单数过滤器 - 单个交易对的最大订单数
+    /// 市价单数量过滤器 - 市价单的数量规则
+    /// spot, margin, futures
+    MARKET_LOT_SIZE {
+        #[serde(rename = "stepSize")]
+        step_size: String, // 数量增减的最小单位
+        #[serde(rename = "maxQty")]
+        max_qty: String, // 最大数量
+        #[serde(rename = "minQty")]
+        min_qty: String, // 最小数量
+    },
+
+    /// 最大订单数过滤器 - 单个交易对的最大订单数
+    /// spot, margin
     MAX_NUM_ORDERS {
         #[serde(rename = "maxNumOrders")]
         max_num_orders: i64, // 最大订单数
     },
 
-    // 最大算法订单数过滤器 - 单个交易对的最大算法订单数
+    /// 最大算法订单数过滤器 - 单个交易对的最大算法订单数
+    /// spot, margin, futures
     MAX_NUM_ALGO_ORDERS {
         #[serde(rename = "maxNumAlgoOrders")]
         max_num_algo_orders: i64, // 最大算法订单数
     },
 
-    // 最大冰山订单数过滤器 - 单个交易对的最大冰山订单数
+    /// 最大冰山订单数过滤器 - 单个交易对的最大冰山订单数
+    /// spot, margin
     MAX_NUM_ICEBERG_ORDERS {
         #[serde(rename = "maxNumIcebergOrders")]
         max_num_iceberg_orders: i64, // 最大冰山订单数
     },
 
-    // 最大持仓过滤器 - 基础资产的最大持仓
+    /// 最大持仓过滤器 - 基础资产的最大持仓
+    /// spot, margin
     MAX_POSITION {
         #[serde(rename = "maxPosition")]
         max_position: String, // 最大持仓
     },
 
-    // 跟踪增量过滤器 - 跟踪止损订单的增量范围
+    /// 跟踪增量过滤器 - 跟踪止损订单的增量范围
+    /// spot, margin
     TRAILING_DELTA {
         #[serde(rename = "minTrailingAboveDelta")]
         min_trailing_above_delta: i32, // 最小跟踪上方增量
@@ -123,37 +137,45 @@ pub enum FilterField {
         max_trailing_below_delta: i32, // 最大跟踪下方增量
     },
 
-    // 最大订单修改次数过滤器 - 单个订单的最大修改次数
+    /// 最大订单修改次数过滤器 - 单个订单的最大修改次数
+    /// spot
     MAX_NUM_ORDER_AMENDS {
         #[serde(rename = "maxNumOrderAmends")]
         max_num_order_amends: i64, // 最大修改次数
     },
 
-    // 最大订单列表数过滤器 - 单个交易对的最大订单列表数
+    /// 最大订单列表数过滤器 - 单个交易对的最大订单列表数
+    /// spot
     MAX_NUM_ORDER_LISTS {
         #[serde(rename = "maxNumOrderLists")]
         max_num_order_lists: i64, // 最大订单列表数
     },
 
-    // 交易所最大订单数过滤器 - 整个交易所的最大订单数
+    // 下面是针对整个交易所的过滤器exchange filters
+    // ==============================================================
+    /// 交易所最大订单数过滤器 - 整个交易所的最大订单数
+    /// spot, margin
     EXCHANGE_MAX_NUM_ORDERS {
         #[serde(rename = "maxNumOrders")]
         max_num_orders: i64, // 最大订单数
     },
 
-    // 交易所最大算法订单数过滤器 - 整个交易所的最大算法订单数
+    /// 交易所最大算法订单数过滤器 - 整个交易所的最大算法订单数
+    /// spot
     EXCHANGE_MAX_NUM_ALGO_ORDERS {
         #[serde(rename = "maxNumAlgoOrders")]
         max_num_algo_orders: i64, // 最大算法订单数
     },
 
-    // 交易所最大冰山订单数过滤器 - 整个交易所的最大冰山订单数
+    /// 交易所最大冰山订单数过滤器 - 整个交易所的最大冰山订单数
+    /// spot, margin
     EXCHANGE_MAX_NUM_ICEBERG_ORDERS {
         #[serde(rename = "maxNumIcebergOrders")]
         max_num_iceberg_orders: i64, // 最大冰山订单数
     },
 
     // 交易所最大订单列表数过滤器 - 整个交易所的最大订单列表数
+    // spot
     EXCHANGE_MAX_NUM_ORDER_LISTS {
         #[serde(rename = "maxNumOrderLists")]
         max_num_order_lists: i64, // 最大订单列表数
@@ -163,3 +185,4 @@ pub enum FilterField {
     #[serde(other)]
     Unknown,
 }
+
