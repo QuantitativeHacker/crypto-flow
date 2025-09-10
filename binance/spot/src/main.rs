@@ -1,14 +1,14 @@
 mod trade;
 
 use crate::rest::Rest;
-use binance::*;
+use binance::{event_handlers::DefaultUserDataHandler, *};
 use clap::Parser;
+use cryptoflow::init_tracing;
 use serde::Deserialize;
 use std::sync::Arc;
 use tracing::{error, info};
 use trade::SpotTrade;
 use websocket::Credentials;
-use cryptoflow::init_tracing;
 
 #[derive(Debug, Deserialize)]
 struct Config {
@@ -47,10 +47,13 @@ async fn main() -> anyhow::Result<()> {
         None => "unknown".into(),
     };
 
+    // 初始化日志
     let _guard = init_tracing(&filename, "log", &args.level.to_string().to_lowercase())?;
 
+    // 创建websocket server，接收Python策略端发送的请求
     let app = Application::new(&config.local).await?;
-    let market = Market::new("wss://stream.binance.com:9443/ws".into()).await?;
+
+    let market = Market::new().await?;
 
     let rest = Arc::new(Rest::new(
         "https://api.binance.com",
@@ -58,11 +61,15 @@ async fn main() -> anyhow::Result<()> {
         &config.pem,
         3000,
     )?);
+
     let credentials = Credentials::new(config.apikey, config.pem, "".to_string(), "0");
 
-    let account = Account::new("wss://stream.binance.com:9443/ws", credentials).await?;
-    let trade = SpotTrade::new(rest.clone(), account, config.margin).await?;
+    let account = Account::new(&credentials, DefaultUserDataHandler).await;
 
+    let state = account.get_stream_state();
+    info!("{:?}", state);
+
+    let trade = SpotTrade::new(rest.clone(), account, config.margin).await?;
     if let Err(e) = app.keep_running(market, trade).await {
         error!("{}", e);
     }

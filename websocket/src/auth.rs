@@ -2,7 +2,7 @@
 #[derive(Clone, Debug)]
 pub struct Credentials {
     pub api_key: String,
-    /// 对 OKX：HMAC secret；对 Binance：可忽略或作为 REST 用密钥
+    /// 对 OKX：HMAC secret；对 Binance：pem里面
     pub api_secret: String,
     /// 仅 OKX 需要；Binance 留空字符串
     pub passphrase: String,

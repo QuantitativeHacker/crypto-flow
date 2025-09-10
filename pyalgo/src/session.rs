@@ -34,7 +34,7 @@ impl Session {
             "login",
             Login {
                 session_id: self.session_id,
-                name: self.name.clone(),
+                name: Some(self.name.clone()),
                 trading: self.trading,
             },
         )?;

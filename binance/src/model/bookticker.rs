@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BinanceBookTicker {
     pub stream: String,
     pub data: BinanceBookTickerData,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 #[allow(non_snake_case)]
 pub struct BinanceBookTickerData {
     pub E: Option<i64>,

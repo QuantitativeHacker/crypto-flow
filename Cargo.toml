@@ -17,7 +17,7 @@ anyhow = "1.0.82"
 base64 = "0.22.1"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 clap = {version = "4.5.4", features = ["derive"] }
-ed25519-dalek = { version = "2.2.0", features = ["pkcs8"] }
+ed25519-dalek = { version = "2.2.0", features = ["pkcs8", 'pem'] }
 futures = "0.3.30"
 futures-util = "0.3.30"
 hmac = "0.12"

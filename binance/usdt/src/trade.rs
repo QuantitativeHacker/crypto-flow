@@ -1,10 +1,16 @@
 use crate::rest::Rest;
+use binance::event_handlers::DefaultUserDataHandler;
 use binance::model::order::usdt::OrderUpdate;
 use binance::model::order::BinanceCancel;
 use binance::model::order::BinanceOrder;
 use binance::model::symbol::BinanceSymbol;
 use binance::model::Event;
 use binance::*;
+use cryptoflow::chat::*;
+use cryptoflow::error_code;
+use cryptoflow::error_code::DUPLICATE_LOGIN;
+use cryptoflow::parser::JsonParser;
+use cryptoflow::position::PositionDB;
 use native_json::Deserialize;
 use serde::Serialize;
 use std::collections::HashMap;
@@ -14,11 +20,6 @@ use std::sync::Arc;
 use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, error, info, warn};
 use tungstenite::Message;
-use cryptoflow::chat::*;
-use cryptoflow::error_code;
-use cryptoflow::error_code::DUPLICATE_LOGIN;
-use cryptoflow::parser::Parser;
-use cryptoflow::position::PositionDB;
 
 async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, BinanceSymbol>> {
     let rsp = rest.get("/fapi/v1/exchangeInfo", &[], false).await?;
@@ -39,7 +40,7 @@ async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, Binan
 pub struct UsdtTrade {
     rest: Arc<Rest>,
     txs: HashMap<SocketAddr, UnboundedSender<Message>>,
-    account: Account,
+    account: Account<DefaultUserDataHandler>,
     // addr -> session_id
     session_id: HashMap<SocketAddr, u16>,
     // session_id -> session
@@ -49,7 +50,10 @@ pub struct UsdtTrade {
 }
 
 impl UsdtTrade {
-    pub async fn new(rest: Arc<Rest>, account: Account) -> anyhow::Result<Self> {
+    pub async fn new(
+        rest: Arc<Rest>,
+        account: Account<DefaultUserDataHandler>,
+    ) -> anyhow::Result<Self> {
         let products = get_positions(&rest).await?;
 
         Ok(Self {
@@ -84,7 +88,7 @@ impl Trade for UsdtTrade {
     async fn process(&mut self) -> anyhow::Result<bool> {
         let msg = self.account.process().await?;
 
-        if let Some(Message::Text(s)) = msg {
+        if let Some(s) = msg {
             if let Event::OrderUpdate(order) = serde_json::from_str::<Event>(&s)? {
                 self.on_order(&order);
             }
@@ -305,7 +309,7 @@ impl Trade for UsdtTrade {
         }
     }
 
-    fn handle_disconnect(&mut self, addr: &SocketAddr, parser: &Parser) -> anyhow::Result<()> {
+    fn handle_disconnect(&mut self, addr: &SocketAddr, parser: &JsonParser) -> anyhow::Result<()> {
         if let Some(id) = parser.get("id") {
             self.reply(
                 addr,

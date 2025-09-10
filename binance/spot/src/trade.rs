@@ -1,13 +1,16 @@
 use crate::rest::Rest;
 use ::serde::Serialize;
+use binance::event_handlers::DefaultUserDataHandler;
 use binance::model::order::BinanceCancel;
 use binance::model::order::BinanceOrder;
 use binance::model::symbol::BinanceSymbol;
+use binance::model::user_data::UserDataEvent;
+use binance::model::EventMessage;
 use binance::model::{Event, ExecutionReport};
 use binance::*;
 use cryptoflow::chat::*;
 use cryptoflow::error_code::*;
-use cryptoflow::parser::Parser;
+use cryptoflow::parser::JsonParser;
 use cryptoflow::position::PositionDB;
 use native_json::Deserialize;
 use std::collections::HashMap;
@@ -37,7 +40,7 @@ async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, Binan
 pub struct SpotTrade {
     rest: Arc<Rest>,
     txs: HashMap<SocketAddr, UnboundedSender<Message>>,
-    account: Account,
+    account: Account<DefaultUserDataHandler>,
     margin: bool,
     // addr -> session_id
     session_id: HashMap<SocketAddr, u16>,
@@ -48,7 +51,11 @@ pub struct SpotTrade {
 }
 
 impl SpotTrade {
-    pub async fn new(rest: Arc<Rest>, account: Account, margin: bool) -> anyhow::Result<Self> {
+    pub async fn new(
+        rest: Arc<Rest>,
+        account: Account<DefaultUserDataHandler>,
+        margin: bool,
+    ) -> anyhow::Result<Self> {
         let products = get_positions(&rest).await?;
 
         Ok(Self {
@@ -83,11 +90,15 @@ impl Trade for SpotTrade {
     }
 
     async fn process(&mut self) -> anyhow::Result<bool> {
-        let msg = self.account.process().await?;
+        let msg = self.account.process().await.unwrap();
 
-        if let Some(Message::Text(s)) = msg {
-            if let Event::ExecutionReport(order) = serde_json::from_str::<Event>(&s)? {
-                self.on_order(&order);
+        if let Some(s) = msg {
+            match serde_json::from_str::<EventMessage>(&s)? {
+                EventMessage {
+                    event: Event::UserDataEvent(UserDataEvent::ExecutionReport(order)),
+                    ..
+                } => self.on_order(&order),
+                _ => {}
             }
         }
 
@@ -319,7 +330,7 @@ impl Trade for SpotTrade {
         }
     }
 
-    fn handle_disconnect(&mut self, addr: &SocketAddr, parser: &Parser) -> anyhow::Result<()> {
+    fn handle_disconnect(&mut self, addr: &SocketAddr, parser: &JsonParser) -> anyhow::Result<()> {
         if let Some(id) = parser.get("id") {
             self.reply(
                 addr,

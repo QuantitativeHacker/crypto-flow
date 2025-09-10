@@ -1,7 +1,7 @@
 use crate::model::quote::BinanceQuote;
 use crate::model::{Event, MarketStream};
 use crate::{Subscriber, Trade};
-use cryptoflow::parser::Parser;
+use cryptoflow::parser::JsonParser;
 use cryptoflow::{chat::*, error_code::*};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -13,20 +13,22 @@ use tracing::{debug, error, info};
 use tungstenite::Message;
 use websocket::{BinanceProtocol, WebsocketClient};
 pub struct Market {
+    /// 给策略端发送消息通道
     txs: HashMap<SocketAddr, UnboundedSender<Message>>,
+    /// 不同策略端不同的subscriber
     subscribers: HashMap<SocketAddr, Subscriber>,
     symbols: HashMap<String, u16>,
+    // Market发送的请求id与策略方地址的映射，每个请求都是由策略发送的
     requests: HashMap<i64, SocketAddr>,
     client: WebsocketClient<BinanceProtocol>,
-    rx: Option<tokio::sync::mpsc::Receiver<Value>>,
+    rx: tokio::sync::mpsc::Receiver<Value>,
     disconnected: bool,
     id: i64,
 }
 
 impl Market {
-    pub async fn new(addr: String) -> anyhow::Result<Self> {
-        let mut client = WebsocketClient::<BinanceProtocol>::new_public();
-        client.set_url(addr.as_str());
+    pub async fn new() -> anyhow::Result<Self> {
+        let mut client = WebsocketClient::<BinanceProtocol>::new_public("market");
         let rx = client.connect().await?;
         // 开启 combined 模式，便于沿用现有解析
         client
@@ -39,7 +41,7 @@ impl Market {
             symbols: HashMap::default(),
             requests: HashMap::default(),
             client,
-            rx: Some(rx),
+            rx,
             disconnected: false,
             id: 1,
         })
@@ -61,7 +63,7 @@ impl Market {
             params: param,
         };
 
-        info!("{:?}", req);
+        info!("Market send msg to binance:{:?}", req);
         self.client
             .wsapi_call(&req.method, serde_json::to_value(&req.params)?, req.id)
             .await?;
@@ -98,20 +100,18 @@ impl Market {
     }
 
     pub async fn process(&mut self) -> anyhow::Result<bool> {
-        if let Some(rx) = self.rx.as_mut() {
-            match rx.recv().await {
-                Some(value) => {
-                    // 直接从 JSON 反序列化 Event
-                    match serde_json::from_value::<Event>(value) {
-                        Ok(e) => self.handle_event(e),
-                        Err(e) => error!("{}", e),
-                    }
+        match self.rx.recv().await {
+            Some(value) => {
+                // 直接从 JSON 反序列化 Event
+                match serde_json::from_value::<Event>(value) {
+                    Ok(e) => self.handle_event(e),
+                    Err(e) => error!("{}", e),
                 }
-                None => {
-                    if !self.disconnected {
-                        error!("market disconnected");
-                        self.disconnected = true
-                    }
+            }
+            None => {
+                if !self.disconnected {
+                    error!("market disconnected");
+                    self.disconnected = true
                 }
             }
         }
@@ -290,7 +290,11 @@ impl Market {
         }
     }
 
-    pub fn handle_disconnect(&mut self, addr: &SocketAddr, parser: &Parser) -> anyhow::Result<()> {
+    pub fn handle_disconnect(
+        &mut self,
+        addr: &SocketAddr,
+        parser: &JsonParser,
+    ) -> anyhow::Result<()> {
         if let Some(id) = parser.get("id") {
             self.reply(
                 addr,

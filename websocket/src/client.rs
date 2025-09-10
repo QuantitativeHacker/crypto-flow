@@ -34,6 +34,7 @@ pub struct StoredSub {
 
 /// 通用 WebSocket 客户端，协议由策略决定
 pub struct WebsocketClient<P: WsProtocol + Clone + Send + Sync + 'static> {
+    client_name: String,
     /// WebSocket连接URL
     url: String,
     /// 是否使用私有WS (需要认证)
@@ -63,8 +64,9 @@ where
     P: WsProtocol + WsEndpoints + Default + Clone + Send + Sync + 'static,
 {
     /// 创建新的公共WebSocket客户端
-    pub fn new_public() -> Self {
+    pub fn new_public(client_name: &str) -> Self {
         Self {
+            client_name: client_name.to_string(),
             url: P::default_public_url().to_string(),
             is_private: false,
             credentials: None,
@@ -80,7 +82,7 @@ where
     }
 
     /// 创建新的私有WebSocket客户端
-    pub fn new_private(credentials: Credentials) -> Self {
+    pub fn new_private(client_name: &str, credentials: Credentials) -> Self {
         let url = P::default_private_url()
             .map(|s| s.to_string())
             .unwrap_or_else(|| {
@@ -88,6 +90,7 @@ where
                 P::default_public_url().to_string()
             });
         Self {
+            client_name: client_name.to_string(),
             url,
             is_private: true,
             credentials: Some(credentials),
@@ -122,23 +125,24 @@ where
             .await
             .map_err(|e| Error::WebSocketError(format!("连接WebSocket失败: {}", e)))?;
 
-        info!("已连接到WebSocket服务器");
+        info!("{} 已连接到WebSocket服务器", self.client_name);
 
         let (write, read) = ws_stream.split();
         let (tx_in, rx_in) = mpsc::channel::<Message>(100);
         let (tx_out, rx_out) = mpsc::channel::<serde_json::Value>(100);
 
+        let client_name = self.client_name.clone();
         // 消息发送任务
         let tx_forward = tokio::spawn(async move {
             let mut rx_in = rx_in;
             let mut write = write;
             while let Some(msg) = rx_in.recv().await {
                 if let Err(e) = write.send(msg).await {
-                    error!("发送WebSocket消息错误: {}", e);
+                    error!("{} 发送WebSocket消息错误: {}", client_name, e);
                     break;
                 }
             }
-            debug!("WebSocket发送任务结束");
+            debug!("{} WebSocket发送任务结束", client_name);
         });
 
         // 消息接收+心跳任务
@@ -163,11 +167,12 @@ where
 
         // 如果是私有连接，进行认证
         if self.is_private {
+            info!("{} 正在进行WebSocket登录认证", self.client_name);
             if let Some(ref credentials) = self.credentials {
                 if let Some(login_msg) = self.protocol.build_login(credentials) {
                     self.send_raw_json(login_msg).await?;
-                    info!("已发送WebSocket登录请求");
-                    sleep(Duration::from_millis(500)).await;
+                    info!("{} 已发送WebSocket登录请求", self.client_name);
+                    sleep(Duration::from_millis(1000)).await;
                 }
             } else {
                 return Err(Error::AuthenticationError(
@@ -374,7 +379,7 @@ where
         match res {
             Ok(msg) => match &msg {
                 Message::Text(text) => {
-                    debug!("收到WebSocket消息: {}", text);
+                    info!("从binance收到WebSocket消息: {}", text);
                     match serde_json::from_str::<serde_json::Value>(text) {
                         Ok(json_value) => {
                             if let Err(e) = tx_out.send(json_value).await {
@@ -469,6 +474,7 @@ where
 {
     fn clone(&self) -> Self {
         Self {
+            client_name: self.client_name.clone(),
             url: self.url.clone(),
             is_private: self.is_private,
             credentials: self.credentials.clone(),
@@ -506,7 +512,7 @@ mod tests {
     #[tokio::test]
     async fn test_subscribe() {
         let args = Args::new().with_inst_id("BTC-USDT".to_string());
-        let mut client = crate::OkxWebsocketClient::new_public();
+        let mut client = crate::OkxWebsocketClient::new_public("test");
         let mut rx = client.connect().await.unwrap();
         client.subscribe(ChannelType::Tickers, args).await.unwrap();
         tokio::spawn(async move {
@@ -522,9 +528,10 @@ mod tests {
         let api_key = env::var("OKX_API_KEY").expect("OKX_API_KEY 未设置");
         let api_secret = env::var("OKX_API_SECRET").expect("OKX_API_SECRET 未设置");
         let passphrase = env::var("OKX_PASSPHRASE").expect("OKX_PASSPHRASE 未设置");
-        let mut client = crate::OkxWebsocketClient::new_private(Credentials::new(
-            api_key, api_secret, passphrase, "0",
-        ));
+        let mut client = crate::OkxWebsocketClient::new_private(
+            "test",
+            Credentials::new(api_key, api_secret, passphrase, "0"),
+        );
         let mut rx_private = client.connect().await.unwrap();
         let args = Args::new()
             .with_inst_id("BTC-USDT".to_string())

@@ -1,10 +1,12 @@
 pub mod account;
 pub mod app;
+pub mod event_handlers;
 pub mod handler;
 pub mod market;
 pub mod model;
 pub mod rest;
 pub mod session;
+pub mod session_manager;
 pub mod subscriber;
 
 pub use account::*;
@@ -15,14 +17,14 @@ pub use session::*;
 use std::future::Future;
 pub use subscriber::*;
 
+use cryptoflow::chat::*;
+use cryptoflow::parser::JsonParser;
 use serde::Serialize;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::net::SocketAddr;
 use tokio::sync::mpsc::UnboundedSender;
 use tungstenite::Message;
-use cryptoflow::chat::*;
-use cryptoflow::parser::Parser;
 
 use crate::model::{
     order::{BinanceCancel, BinanceOrder},
@@ -46,7 +48,7 @@ pub trait Trade {
     ) -> impl Future<Output = anyhow::Result<Option<Error>>> + Send;
     fn handle_subscribe(&mut self, addr: &SocketAddr, req: &Request<Vec<String>>) -> Option<Error>;
     fn validate_symbol(&self, symbol: &str, stream: &str) -> bool;
-    fn handle_disconnect(&mut self, addr: &SocketAddr, parser: &Parser) -> anyhow::Result<()>;
+    fn handle_disconnect(&mut self, addr: &SocketAddr, parser: &JsonParser) -> anyhow::Result<()>;
     fn reply<T: Serialize + Debug>(
         &mut self,
         addr: &SocketAddr,

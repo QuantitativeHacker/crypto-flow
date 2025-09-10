@@ -111,6 +111,8 @@ impl WebSocketServer {
         Ok(Self { inner: listener })
     }
 
+    /// 接受新的连接
+    /// 返回连接的地址，发送端，接收端
     pub async fn accept(&self) -> anyhow::Result<(SocketAddr, TcpStreamSender, TcpStreamReceiver)> {
         let (stream, peer) = self.inner.accept().await?;
 

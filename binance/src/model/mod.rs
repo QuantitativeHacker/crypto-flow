@@ -6,7 +6,9 @@ pub mod filter;
 pub mod kline;
 pub mod order;
 pub mod quote;
+pub mod session;
 pub mod symbol;
+pub mod user_data;
 
 use cryptoflow::chat::*;
 use native_json::json;
@@ -18,11 +20,12 @@ use crate::{
         depth::{BinanceFutureDepth, BinanceSpotDepth},
         kline::BinanceKline,
         order::usdt::OrderUpdate,
+        user_data::UserDataEvent,
     },
     OrderTrait,
 };
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
 pub enum MarketStream {
     BookTicker(BinanceBookTicker),
@@ -31,84 +34,7 @@ pub enum MarketStream {
     Kline(BinanceKline),
 }
 
-json! {
-    SpotPosition {
-        a: String,
-        f: String,
-        l: String
-    }
-}
-
-json! {
-    OutboundAccountPosition {
-        e: String,
-        E: i64,
-        u: i64,
-        B: [SpotPosition]
-    }
-}
-
-json! {
-    BalanceUpdate {
-        e: String,
-        E: i64,
-        a: String,
-        d: String,
-        T: i64
-    }
-}
-
-json! {
-    SpotExpired {
-        e: String,
-        E: String,
-        listenKey: String
-    }
-}
-
-json! {
-    UserLiabilityChange {
-        e: String,
-        E: i64,
-        a: String,
-        t: String,
-        p: String,
-        i: String,
-    }
-}
-
-json! {
-    MarginLevelStatusChange {
-        e: String,
-        E: i64,
-        l: String,
-        s: String
-    }
-}
-
-json! {
-    OCODetails{
-        s: String,
-        i: i64,
-        c: String
-    }
-}
-
-json! {
-    ListenStatus {
-        e: String,
-        E: i64,
-        s: String,
-        g: i64,
-        o: String,
-        l: String,
-        L: String,
-        r: String,
-        C: String,
-        T: i64,
-        O: [OCODetails]
-    }
-}
+// 用户数据事件结构体已移动到 user_data.rs 模块
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 #[serde(into = "Order")]
@@ -148,8 +74,7 @@ pub struct ExecutionReport {
     pub D: Option<i64>, // 追踪时间; 这仅在追踪止损订单已被激活时可见
     pub W: Option<i64>, // Working Time; 订单被添加到 order book 的时间
     pub V: String, // SelfTradePreventionMode
-
-    // 可选字段 - 仅在满足特定条件时出现
+    // 以下字段为可选字段，根据订单类型和状态可能存在
     pub d: Option<i64>,      // Trailing Delta - 出现在追踪止损订单中
     pub j: Option<i64>,      // Strategy Id - 如果在请求中添加了strategyId参数
     pub J: Option<i64>,      // Strategy Type - 如果在请求中添加了strategyType参数
@@ -381,7 +306,15 @@ json! {
     }
 }
 
-#[derive(Debug, Deserialize)]
+/// 用户数据流订阅结果
+#[derive(Debug, Deserialize, Clone)]
+pub struct EventMessage {
+    #[serde(rename = "subscriptionId")]
+    pub subscription_id: u32,
+    pub event: Event,
+}
+
+#[derive(Debug, Deserialize, Clone)]
 #[serde(untagged)]
 #[allow(unused)]
 pub enum Event {
@@ -389,14 +322,8 @@ pub enum Event {
     Error(ErrorResponse),
     Stream(MarketStream),
     // spot
-    ExecutionReport(ExecutionReport),
-    // SpotListenKey(SpotListenKey),
-    Balance(BalanceUpdate),
-    OutboundAccountPosition(OutboundAccountPosition),
-    SpotExpired(SpotExpired),
-    ListenStatus(ListenStatus),
-    UserLiabilityChange(UserLiabilityChange),
-    MarginLevelStatusChange(MarginLevelStatusChange),
+    UserDataEvent(UserDataEvent),
+
     // usdt
     OrderUpdate(OrderUpdate),
     // UsdtListenKey(UsdtListenKey),

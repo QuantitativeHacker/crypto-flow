@@ -21,24 +21,42 @@ pub fn generate_signature(
     let sig = mac.finalize().into_bytes();
     Ok(base64::engine::general_purpose::STANDARD.encode(sig))
 }
-
-/// Binance WS-API: 使用 Ed25519 对 payload 进行签名并返回 base64
-/// secret_or_pem: 可以是内联 PEM 字符串，或指向 PEM 文件的路径
 pub fn sign_ed25519_base64(secret_or_pem: &str, payload: &str) -> anyhow::Result<String> {
     use ed25519_dalek::{Signer, SigningKey, pkcs8::DecodePrivateKey};
 
-    // 读取 PEM 内容
-    let pem_str = if secret_or_pem.contains("-----BEGIN") {
-        secret_or_pem.to_string()
-    } else {
-        std::fs::read_to_string(secret_or_pem)
-            .with_context(|| format!("读取 Ed25519 私钥失败: {}", secret_or_pem))?
-    };
+    // 1) 如果传入的是内联 PEM 内容，直接解析 PEM
 
-    // 从 PEM 解析 Ed25519 SigningKey
-    let sk = SigningKey::from_pkcs8_der(pem_str.as_bytes())
-        .with_context(|| "解析 Ed25519 PKCS#8 私钥失败")?;
+    if secret_or_pem.contains("-----BEGIN") {
+        let sk = ed25519_dalek::SigningKey::from_pkcs8_pem(secret_or_pem)
+            .with_context(|| "解析 Ed25519 PKCS#8 PEM 私钥失败")?;
+
+        let sig = sk.sign(payload.as_bytes());
+
+        return Ok(base64::engine::general_purpose::STANDARD.encode(sig.to_bytes()));
+    }
+
+    // 2) 否则认为是文件路径，优先按文本读取并尝试 PEM；若非 PEM 再按二进制 DER 读取
+
+    if let Ok(pem_text) = std::fs::read_to_string(secret_or_pem) {
+        if pem_text.contains("-----BEGIN") {
+            let sk = SigningKey::from_pkcs8_pem(&pem_text)
+                .with_context(|| format!("解析 Ed25519 PEM 私钥失败: {}", secret_or_pem))?;
+
+            let sig = sk.sign(payload.as_bytes());
+
+            return Ok(base64::engine::general_purpose::STANDARD.encode(sig.to_bytes()));
+        }
+    }
+
+    // 3) 按 DER 二进制尝试
+
+    let der = std::fs::read(secret_or_pem)
+        .with_context(|| format!("读取 Ed25519 私钥(DER)失败: {}", secret_or_pem))?;
+
+    let sk =
+        SigningKey::from_pkcs8_der(&der).with_context(|| "解析 Ed25519 PKCS#8 DER 私钥失败")?;
 
     let sig = sk.sign(payload.as_bytes());
+
     Ok(base64::engine::general_purpose::STANDARD.encode(sig.to_bytes()))
 }

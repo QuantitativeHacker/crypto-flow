@@ -1,4 +1,3 @@
-use native_json::{is_default, json};
 use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, str::FromStr};
 
@@ -9,39 +8,36 @@ pub struct Request<T> {
     pub params: T,
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Response<T> {
     pub id: i64,
     pub result: T,
 }
 
-json! {
-    PositionReq {
-        session_id: u16,
-        symbols: Vec<String>,
-    }
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PositionReq {
+    pub session_id: u16,
+    pub symbols: Vec<String>,
 }
 
-json! {
-    PositionRsp {
-        session_id: u16,
-        positions: Vec<Position>,
-    }
+#[derive(Serialize, Deserialize, Debug)]
+pub struct PositionRsp {
+    pub session_id: u16,
+    pub positions: Vec<Position>,
 }
 
-json! {
-    Error {
-    code: i32,
-    msg: String,
-    }
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Error {
+    pub code: i32,
+    pub msg: String,
 }
 
-json! {
-Login {
-    session_id: u16,
-    name: String?,
-    trading: bool,
-    }
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Login {
+    pub session_id: u16,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    pub trading: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]

@@ -2,11 +2,11 @@ use serde::de::DeserializeOwned;
 use serde_json::Value;
 
 #[derive(Debug)]
-pub struct Parser {
+pub struct JsonParser {
     value: Value,
 }
 
-impl Parser {
+impl JsonParser {
     pub fn new(s: &str) -> anyhow::Result<Self> {
         Ok({
             Self {
@@ -42,7 +42,7 @@ where
     Ok(T::deserialize(value)?)
 }
 
-impl From<Value> for Parser {
+impl From<Value> for JsonParser {
     fn from(value: Value) -> Self {
         Self { value }
     }

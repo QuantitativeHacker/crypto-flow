@@ -149,6 +149,8 @@ impl WsProtocol for BinanceProtocol {
     }
 
     fn build_login(&self, _cred: &Credentials) -> Option<serde_json::Value> {
+        // Binance 行情/stream 网关不支持会话登录（使用 SUBSCRIBE/UNSUBSCRIBE 即可），
+        // 因此这里无需下发登录请求，直接返回 None。
         None
     }
 
@@ -192,40 +194,136 @@ impl WsEndpoints for BinanceProtocol {
 #[derive(Clone, Default)]
 pub struct BinanceWsApiProtocol;
 
+impl BinanceWsApiProtocol {
+    /// 构造签名 payload：将参数按字母序排序后用 & 连接
+    /// 参数格式：key=value&key2=value2...
+    fn build_signature_payload(params: &std::collections::BTreeMap<String, String>) -> String {
+        params
+            .iter()
+            .map(|(k, v)| format!("{}={}", k, v))
+            .collect::<Vec<_>>()
+            .join("&")
+    }
+
+    /// 为请求参数生成 Ed25519 签名
+    fn sign_params(
+        cred: &Credentials,
+        params: &mut std::collections::BTreeMap<String, String>,
+    ) -> Result<String, anyhow::Error> {
+        // 构造签名 payload（不包含 signature 字段）
+        let payload = Self::build_signature_payload(params);
+
+        // 使用 Ed25519 对 payload 进行签名并返回 Base64 编码
+        crate::utils::sign_ed25519_base64(&cred.api_secret, &payload)
+    }
+
+    /// 构建带签名的 WebSocket API 请求（如 order.place）
+    /// 参数会自动按字母序排序并生成签名
+    pub fn build_signed_request(
+        &self,
+        cred: &Credentials,
+        id: &str,
+        method: &str,
+        mut params: std::collections::BTreeMap<String, serde_json::Value>,
+    ) -> Option<serde_json::Value> {
+        let timestamp = crate::utils::generate_timestamp_websocket();
+
+        // 添加必需的认证参数
+        params.insert(
+            "apiKey".to_string(),
+            serde_json::Value::String(cred.api_key.clone()),
+        );
+        params.insert(
+            "timestamp".to_string(),
+            serde_json::Value::Number(serde_json::Number::from(
+                timestamp.parse::<i64>().unwrap_or(0),
+            )),
+        );
+
+        // 将所有参数转换为字符串用于签名（除了 signature）
+        let mut string_params = std::collections::BTreeMap::new();
+        for (key, value) in &params {
+            if key != "signature" {
+                let string_value = match value {
+                    serde_json::Value::String(s) => s.clone(),
+                    serde_json::Value::Number(n) => n.to_string(),
+                    serde_json::Value::Bool(b) => b.to_string(),
+                    _ => value.to_string().trim_matches('"').to_string(),
+                };
+                string_params.insert(key.clone(), string_value);
+            }
+        }
+
+        // 生成签名
+        let signature = match Self::sign_params(cred, &mut string_params) {
+            Ok(s) => s,
+            Err(e) => {
+                tracing::error!("Ed25519 签名失败: {}", e);
+                return None;
+            }
+        };
+
+        // 添加签名到参数中
+        params.insert(
+            "signature".to_string(),
+            serde_json::Value::String(signature),
+        );
+
+        // 构造最终请求
+        let req = serde_json::json!({
+            "id": id,
+            "method": method,
+            "params": params
+        });
+
+        tracing::info!(
+            "构建 Binance WS-API 签名请求: method={}, apiKey={}",
+            method,
+            cred.api_key
+        );
+        Some(req)
+    }
+}
+
 impl WsProtocol for BinanceWsApiProtocol {
     fn ping_text(&self) -> Option<String> {
         None
     }
 
     fn build_login(&self, cred: &Credentials) -> Option<serde_json::Value> {
-        // 参考官方文档：session-authentication / authentication-requests（Ed25519）
-        // 构造按 key 字母序的 payload: "apiKey=...&timestamp=..."
-        let ts = crate::utils::generate_timestamp_websocket();
-        let mut pairs = vec![
-            ("apiKey".to_string(), cred.api_key.clone()),
-            ("timestamp".to_string(), ts.clone()),
-        ];
-        pairs.sort_by(|a, b| a.0.cmp(&b.0));
-        let payload = pairs
-            .iter()
-            .map(|(k, v)| format!("{}={}", k, v))
-            .collect::<Vec<_>>()
-            .join("&");
+        // 根据币安官方文档：https://developers.binance.com/docs/zh-CN/binance-spot-api-docs/websocket-api/authentication-requests
+        // session.logon 需要 Ed25519 签名，仅支持 Ed25519 密钥
+        let timestamp = crate::utils::generate_timestamp_websocket();
 
-        let signature = match crate::utils::sign_ed25519_base64(&cred.api_secret, &payload) {
+        // 构造参数映射（不包含 signature）
+        let mut params = std::collections::BTreeMap::new();
+        params.insert("apiKey".to_string(), cred.api_key.clone());
+        params.insert("timestamp".to_string(), timestamp.clone());
+
+        // 生成签名
+        let signature = match Self::sign_params(cred, &mut params) {
             Ok(s) => s,
-            Err(_) => return None,
+            Err(e) => {
+                tracing::error!("Ed25519 签名失败: {}", e);
+                return None;
+            }
         };
 
+        // 构造 session.logon 请求
         let req = serde_json::json!({
-            "id": 1,
+            "id": "session_logon_1",
             "method": "session.logon",
             "params": {
                 "apiKey": cred.api_key,
-                "timestamp": ts.parse::<i64>().unwrap_or(0),
                 "signature": signature,
+                "timestamp": timestamp.parse::<i64>().unwrap_or(0)
             }
         });
+
+        tracing::info!(
+            "构建 Binance WS-API session.logon 请求: apiKey={}",
+            cred.api_key
+        );
         Some(req)
     }
 
@@ -249,5 +347,8 @@ impl WsProtocol for BinanceWsApiProtocol {
 impl WsEndpoints for BinanceWsApiProtocol {
     fn default_public_url() -> &'static str {
         "wss://ws-api.binance.com/ws-api/v3"
+    }
+    fn default_private_url() -> Option<&'static str> {
+        Some("wss://ws-api.binance.com/ws-api/v3")
     }
 }
