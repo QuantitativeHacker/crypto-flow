@@ -340,10 +340,6 @@ impl Trade for UsdtTrade {
         }
         Ok(())
     }
-
-    async fn reconncet(&mut self) -> anyhow::Result<()> {
-        self.account.reconnect().await
-    }
 }
 
 // callback

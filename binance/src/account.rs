@@ -1,3 +1,7 @@
+/// 账户
+/// 每个账户都有一个会话管理器，用于管理与Binance的WebSocket连接
+/// 每个账户都有一个用户数据流状态，用于记录当前订阅的用户数据流
+///  
 use serde_json::Value;
 use tracing::{info, warn};
 
@@ -19,7 +23,7 @@ use websocket::Credentials;
 /// 专门负责用户数据流的订阅、取消订阅和事件处理
 /// 每个Account有一个SessionManager
 pub struct Account<T: UserDataEventHandler> {
-    /// 会话管理器引用
+    /// 会话管理器
     session_manager: SessionManager,
     /// 用户数据流状态
     user_data_state: UserDataStreamState,
@@ -152,25 +156,30 @@ impl<T: UserDataEventHandler> Account<T> {
     }
 
     /// 处理消息（主要的事件循环）
+    /// Account有三种信息要处理：
+    /// 1. 用户数据事件
+    /// 2. 登录响应
+    /// 3. 订阅用户数据响应
+    /// 4. 取消订阅响应
+    /// 5. 查询当前订阅列表响应
     pub async fn process(&mut self) -> anyhow::Result<Option<String>> {
         // info!("account process, try to recv");
         match self.rx.try_recv() {
             Ok(inner) => {
-                // 先尝试解析为 envelope 格式 { subscriptionId, event }
+                // 1) 先尝试解析为 普通事件 格式 { subscriptionId, event }
                 if let Ok(event_message) = serde_json::from_value::<EventMessage>(inner.clone()) {
                     if let Event::UserDataEvent(event) = event_message.event {
-                        info!("Account收到Event:用户数据: {:?}", inner);
                         self.handle_user_data_event(&event).await?;
                     } else {
-                        info!("Account收到Event:非数据推送: {:?}", inner);
+                        info!("Account收到Event:非数据推送: {:?}", event_message);
                     }
                 }
+
                 // 2) 登录响应
                 if let Ok(response) = serde_json::from_value::<SessionLogonResponse>(inner.clone())
                 {
-                    info!("Account收到登录响应: {:?}", inner);
                     // 收到登录响应，更新会话状态
-                    self.session_manager.handle_login_response(&response);
+                    self.handle_login_response(&response).await;
                     // 必须认证之后才能订阅
                     self.subscribe_user_data().await?;
                     return Ok(None);
@@ -179,21 +188,7 @@ impl<T: UserDataEventHandler> Account<T> {
                 // 3) 订阅用户数据响应 { id, status, result: { subscriptionId }, rateLimits }
                 if let Ok(resp) = serde_json::from_value::<UserDataSubscribeResponse>(inner.clone())
                 {
-                    if resp.status == 200 {
-                        if let Some(result) = resp.result {
-                            let _ = self
-                                .user_data_state
-                                .add_subscription(result.subscription_id);
-                            info!(
-                                "用户数据订阅成功，subscriptionId={} (id={})",
-                                result.subscription_id, resp.id
-                            );
-                        } else {
-                            warn!("订阅响应缺少 result 字段: {:?}", inner);
-                        }
-                    } else {
-                        warn!("订阅失败: status={}, err={:?}", resp.status, resp.error);
-                    }
+                    self.handle_user_data_subscribe_response(&resp).await;
                     return Ok(None);
                 }
 
@@ -214,24 +209,7 @@ impl<T: UserDataEventHandler> Account<T> {
                 if let Ok(resp) =
                     serde_json::from_value::<SessionSubscriptionsResponse>(inner.clone())
                 {
-                    if resp.status == 200 {
-                        if let Some(list) = resp.result {
-                            // 用服务端列表对齐本地状态
-                            self.user_data_state.clear_all_subscriptions();
-                            for s in list {
-                                let _ = self.user_data_state.add_subscription(s.subscription_id);
-                            }
-                            info!(
-                                "已同步订阅列表，共{}条",
-                                self.user_data_state.active_count()
-                            );
-                        }
-                    } else {
-                        warn!(
-                            "获取订阅列表失败: status={}, err={:?}",
-                            resp.status, resp.error
-                        );
-                    }
+                    self.handle_session_subscriptions_response(&resp);
                     return Ok(None);
                 }
 
@@ -253,6 +231,7 @@ impl<T: UserDataEventHandler> Account<T> {
 
     /// 处理用户数据事件
     async fn handle_user_data_event(&self, event: &UserDataEvent) -> anyhow::Result<()> {
+        info!("Account收到Event:用户数据: {:?}", event);
         let handler = &self.event_handler;
         match event {
             UserDataEvent::ExecutionReport(report) => {
@@ -280,18 +259,51 @@ impl<T: UserDataEventHandler> Account<T> {
         Ok(())
     }
 
-    /// 重新连接
-    pub async fn reconnect(&mut self) -> anyhow::Result<()> {
-        info!("Account 重新连接中...");
+    async fn handle_login_response(&mut self, response: &SessionLogonResponse) {
+        info!("Account收到登录响应: {:?}", response);
+        self.session_manager.handle_login_response(response);
+    }
 
-        self.session_manager.reconnect().await?;
+    /// 处理用户数据订阅响应
+    async fn handle_user_data_subscribe_response(&mut self, resp: &UserDataSubscribeResponse) {
+        info!("用户数据订阅响应: {:?}", resp);
+        if resp.status == 200 {
+            if let Some(result) = &resp.result {
+                let _ = self
+                    .user_data_state
+                    .add_subscription(result.subscription_id);
+                info!(
+                    "用户数据订阅成功，subscriptionId={} (id={})",
+                    result.subscription_id, resp.id
+                );
+            } else {
+                warn!("订阅响应缺少 result 字段: {:?}", resp);
+            }
+        } else {
+            warn!("订阅失败: status={}, err={:?}", resp.status, resp.error);
+        }
+    }
 
-        // 重置状态
-        self.disconnected = false;
-        self.user_data_state.clear_all_subscriptions();
-
-        info!("Account 重新连接完成");
-        Ok(())
+    /// 处理会话订阅列表响应
+    fn handle_session_subscriptions_response(&mut self, resp: &SessionSubscriptionsResponse) {
+        if resp.status == 200 {
+            if let Some(list) = &resp.result {
+                // 用服务端列表对齐本地状态
+                self.user_data_state.clear_all_subscriptions();
+                for s in list {
+                    let _ = self.user_data_state.add_subscription(s.subscription_id);
+                }
+                info!(
+                    "已同步订阅列表，共{}条",
+                    self.user_data_state.active_count()
+                );
+            }
+        } else {
+            warn!(
+                "获取订阅列表失败: status={}, err={:?}",
+                resp.status, resp.error
+            );
+        }
     }
 
     /// 获取活跃订阅数量

@@ -362,12 +362,6 @@ impl Trade for SpotTrade {
         }
         Ok(())
     }
-
-    async fn reconncet(&mut self) -> anyhow::Result<()> {
-        self.account.reconnect().await?;
-
-        Ok(())
-    }
 }
 
 // callback

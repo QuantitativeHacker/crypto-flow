@@ -55,7 +55,6 @@ pub trait Trade {
         id: i64,
         result: T,
     ) -> anyhow::Result<()>;
-    fn reconncet(&mut self) -> impl Future<Output = anyhow::Result<()>> + Send;
 }
 
 pub trait OrderTrait {

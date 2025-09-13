@@ -127,28 +127,6 @@ impl SessionManager {
         Ok(())
     }
 
-    /// 重新连接
-    pub async fn reconnect(&mut self) -> anyhow::Result<()> {
-        info!("正在重新连接...");
-
-        let credentials = self.credentials.clone();
-
-        // 重置状态
-        self.state = SessionState::Disconnected;
-        self.ws_client = None;
-
-        // 重新连接
-        self.connect().await?;
-
-        // 如果有凭据，重新登录
-        if let Some(cred) = credentials {
-            self.login(&cred).await?;
-        }
-
-        info!("重新连接完成");
-        Ok(())
-    }
-
     /// 检查是否已认证
     pub fn is_authenticated(&self) -> bool {
         matches!(self.state, SessionState::Authenticated { .. })
@@ -174,25 +152,21 @@ impl SessionManager {
         self.ws_client.as_mut()
     }
 
-    /// 处理登录响应（由外部调用）
-    pub fn handle_login_result(&mut self, result: &SessionLogonResult) {
-        self.state = SessionState::Authenticated {
-            api_key: result.api_key.clone(),
-            authorized_since: result.authorized_since,
-            server_time: result.server_time,
-            user_data_stream: result.user_data_stream,
-        };
-        info!(
-            "WebSocket API 认证成功: api_key={}, user_data_stream={}",
-            result.api_key, result.user_data_stream
-        );
-    }
-
-    /// 处理登录完整响应（状态码 + 结果/错误）
+    /// 处理登录响应（状态码 + 结果/错误）
     pub fn handle_login_response(&mut self, response: &SessionLogonResponse) {
+        info!("Account收到登录响应: {:?}", response);
         if response.status == 200 {
             if let Some(result) = &response.result {
-                self.handle_login_result(result);
+                self.state = SessionState::Authenticated {
+                    api_key: result.api_key.clone(),
+                    authorized_since: result.authorized_since,
+                    server_time: result.server_time,
+                    user_data_stream: result.user_data_stream,
+                };
+                info!(
+                    "WebSocket API 认证成功: api_key={}, user_data_stream={}",
+                    result.api_key, result.user_data_stream
+                );
             } else {
                 warn!("登录响应状态为200但缺少result字段");
             }
