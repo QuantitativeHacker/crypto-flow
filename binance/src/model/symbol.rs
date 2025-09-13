@@ -47,21 +47,6 @@ pub struct BinanceSymbol {
     pub onboardDate: Option<u64>, // 上线日期
 }
 
-// impl Serialize for BinanceSymbol {
-//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-//     where
-//         S: Serializer,
-//     {
-//         let mut state = serializer.serialize_struct("BinanceSymbol", 5)?;
-//         state.serialize_field("symbol", &self.symbol.to_lowercase())?;
-//         state.serialize_field("delivery", &self.deliveryDate)?;
-//         state.serialize_field("onboard", &self.onboardDate)?;
-//         state.serialize_field("order", &self.orderTypes)?;
-//         state.serialize_field("filters", &self.filters)?;
-//         state.end()
-//     }
-// }
-
 impl TradingRules for BinanceSymbol {
     fn symbol(&self) -> &String {
         &self.symbol
