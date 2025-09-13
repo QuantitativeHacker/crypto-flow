@@ -1,15 +1,14 @@
 target
 *.db
-**/algo
 
 # log文件
 log/*
 
 # 策略目录 - 保留示例文件，忽略个人策略
-strategy/*
-!strategy/demo.py
-!strategy/kline.py
-!strategy/pair.py
+./strategy/*
+!./strategy/demo.py
+!./strategy/kline.py
+!./strategy/pair.py
 
 ## 敏感配置文件
 private_key.pem
