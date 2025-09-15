@@ -384,7 +384,9 @@ impl Handler {
         }
     }
 
-    // 主循环：接入策略客户端，处理交易所数据与策略请求
+    // 主循环：
+    // 1. 处理exchange发来的消息并转发
+    // 2. 处理client的消息，处理后发送给exchange
     pub async fn process<T: Trade>(
         &mut self,
         mut client_conn_rx: UnboundedReceiver<Connection>,

@@ -318,9 +318,11 @@ pub struct EventMessage {
 #[serde(untagged)]
 #[allow(unused)]
 pub enum Event {
-    Success(SResponse<Option<i64>>),
-    Error(SErrorResponse),
+    // market
+    Success(Response<Option<i64>>),
+    Error(ErrorResponse),
     Stream(MarketStream),
+
     // spot
     UserDataEvent(UserDataEvent),
 

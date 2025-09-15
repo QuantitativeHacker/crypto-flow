@@ -2,7 +2,7 @@ use crate::constant::*;
 use binance::model::symbol::BinanceSymbol;
 use chrono::DateTime;
 use chrono_tz::{Asia::Shanghai, Tz};
-use cryptoflow::chat::{SErrorResponse, SLoginResponse, SResponse, SSuccess};
+use cryptoflow::chat::{ErrorResponse, SLoginResponse, SResponse, Success};
 use cryptoflow::trading_rules::TradingRules;
 use pyo3::prelude::*;
 use pyo3::{conversion::IntoPyObject, IntoPyObjectExt};

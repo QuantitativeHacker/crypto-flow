@@ -57,25 +57,13 @@ impl Market {
         method: String,
         param: T,
     ) -> anyhow::Result<i64> {
-        let req: SRequest<T> = SRequest {
-            id: self.id,
-            method: method,
-            params: param,
-        };
-
-        info!("Market send msg to binance:{:?}", req);
+        let id = self.id;
         self.client
-            .wsapi_call(
-                &req.method,
-                serde_json::to_value(&req.params)?,
-                req.id as i64,
-            )
+            .wsapi_call(&method, serde_json::to_value(&param)?, id as i64)
             .await?;
-
-        self.requests.insert(req.id, addr.clone());
+        self.requests.insert(id, addr.clone());
         self.id += 1;
-
-        Ok(req.id)
+        Ok(id)
     }
 
     pub fn reply_to_strategy_client<T: Serialize + Debug>(
@@ -108,7 +96,7 @@ impl Market {
             Some(value) => {
                 // 直接从 JSON 反序列化 Event
                 match serde_json::from_value::<Event>(value) {
-                    Ok(e) => self.handle_strategy_client_event(e),
+                    Ok(e) => self.handle_exchange_event(e),
                     Err(e) => error!("{}", e),
                 }
             }
@@ -156,27 +144,27 @@ impl Market {
         Ok(())
     }
 
-    fn handle_strategy_client_error(&mut self, err: SErrorResponse) {
+    fn handle_exchange_error(&mut self, err: ErrorResponse) {
         if let Some(index) = self.requests.remove(&err.id) {
             if let Some(subscriber) = self.subscribers.get_mut(&index) {
-                if let Err(e) = subscriber.on_error(err) {
+                if let Err(e) = subscriber.on_exchange_error(err) {
                     error!("{}", e);
                 }
             }
         }
     }
 
-    fn handle_strategy_client_success(&mut self, suc: SResponse<Option<i64>>) {
+    fn handle_exchange_success(&mut self, suc: Response<Option<i64>>) {
         if let Some(index) = self.requests.remove(&suc.id) {
             if let Some(subscriber) = self.subscribers.get_mut(&index) {
-                if let Err(e) = subscriber.on_response(suc) {
+                if let Err(e) = subscriber.on_exchange_response(suc) {
                     error!("{}", e);
                 }
             }
         }
     }
 
-    fn handle_strategy_client_stream(&mut self, stream: MarketStream) -> anyhow::Result<()> {
+    fn handle_exchange_stream(&mut self, stream: MarketStream) -> anyhow::Result<()> {
         let s = match &stream {
             MarketStream::BookTicker(book) => book.stream().clone(),
             MarketStream::Kline(kline) => kline.stream().clone(),
@@ -205,7 +193,7 @@ impl Market {
 
         for subscriber in self.subscribers.values_mut() {
             if subscriber.is_subscribed(&s) {
-                if let Err(e) = subscriber.forward(&data) {
+                if let Err(e) = subscriber.forward_to_strategy_client(&data) {
                     error!("{}", e);
                 }
             }
@@ -284,20 +272,20 @@ impl Market {
                 .send_to_exchange(addr, "SUBSCRIBE".into(), symbols.clone())
                 .await?;
             if let Some(subscriber) = self.subscribers.get_mut(addr) {
-                subscriber.on_subscribe(id, req.id, symbols);
+                subscriber.on_strategy_client_subscribe(id, req.id, symbols);
             }
         }
 
         Ok(())
     }
 
-    fn handle_strategy_client_event(&mut self, event: Event) {
+    fn handle_exchange_event(&mut self, event: Event) {
         debug!("{:?}", event);
         match event {
-            Event::Success(suc) => self.handle_strategy_client_success(suc),
-            Event::Error(e) => self.handle_strategy_client_error(e),
+            Event::Success(suc) => self.handle_exchange_success(suc),
+            Event::Error(e) => self.handle_exchange_error(e),
             Event::Stream(stream) => {
-                if let Err(e) = self.handle_strategy_client_stream(stream) {
+                if let Err(e) = self.handle_exchange_stream(stream) {
                     error!("{}", e)
                 }
             }

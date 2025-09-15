@@ -2,6 +2,26 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, str::FromStr};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Request<T> {
+    pub id: i64,
+    pub method: String,
+    pub params: T,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Response<T> {
+    pub id: i64,
+    pub result: T,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Error {
+    pub code: i32,
+    pub msg: String,
+}
+
+/// strategy request
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SRequest<T> {
     pub id: i64,
     pub method: String,
@@ -14,6 +34,12 @@ pub struct SResponse<T> {
     pub result: T,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct SError {
+    pub code: i32,
+    pub msg: String,
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 pub struct SPositionReq {
     pub session_id: u16,
@@ -24,12 +50,6 @@ pub struct SPositionReq {
 pub struct SPositionRsp {
     pub session_id: u16,
     pub positions: Vec<Position>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct SError {
-    pub code: i32,
-    pub msg: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -311,6 +331,7 @@ pub struct Position {
     pub net: f64,
 }
 
-pub type SSuccess = SResponse<Option<u8>>;
+pub type Success = Response<Option<u8>>;
+pub type ErrorResponse = Response<Error>;
+
 pub type SLoginResponse = SResponse<SLogin>;
-pub type SErrorResponse = SResponse<SError>;
