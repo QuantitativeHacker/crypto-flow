@@ -3,7 +3,7 @@ use crate::subscription::Subscription;
 use crate::ws::WebSocketClient;
 use crate::{constant::*, Order, PositionRsp};
 use crate::{Event, Position};
-use cryptoflow::chat::{Error, Login, LoginResponse, PositionReq, Request, Response};
+use cryptoflow::chat::{SError, SLogin, SLoginResponse, SPositionReq, SRequest, SResponse};
 use log::*;
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
@@ -20,11 +20,11 @@ pub struct Session {
     session_id: u16,
     name: String,
     subscription: HashMap<String, Py<Subscription>>,
-    orders: HashMap<u32, Py<Order>>,
+    orders: HashMap<u8, Py<Order>>,
     symbols: HashSet<String>,
     login: bool,
     trading: bool,
-    id: u32,
+    id: u8,
     connection_time: Option<Instant>,
 }
 
@@ -32,7 +32,7 @@ impl Session {
     fn login(&mut self) -> anyhow::Result<()> {
         self.send(
             "login",
-            Login {
+            SLogin {
                 session_id: self.session_id,
                 name: Some(self.name.clone()),
                 trading: self.trading,
@@ -41,7 +41,7 @@ impl Session {
         Ok(())
     }
 
-    fn on_login(&mut self, login: LoginResponse) -> Option<Py<PyAny>> {
+    fn on_login(&mut self, login: SLoginResponse) -> Option<Py<PyAny>> {
         info!("{:?}", login);
         self.login = true;
 
@@ -56,7 +56,7 @@ impl Session {
     fn get_positions(&mut self) -> anyhow::Result<()> {
         self.send(
             "get_positions",
-            PositionReq {
+            SPositionReq {
                 session_id: self.session_id,
                 symbols: Vec::new(),
             },
@@ -64,7 +64,7 @@ impl Session {
         Ok(())
     }
 
-    fn on_products(&mut self, rsp: Response<Vec<Product>>) -> anyhow::Result<()> {
+    fn on_products(&mut self, rsp: SResponse<Vec<Product>>) -> anyhow::Result<()> {
         let mut products = rsp.result;
         let cnt = products.len();
         while let Some(product) = products.pop() {
@@ -79,7 +79,7 @@ impl Session {
         Ok(())
     }
 
-    fn on_positions(&mut self, rsp: Response<PositionRsp>) -> anyhow::Result<()> {
+    fn on_positions(&mut self, rsp: SResponse<PositionRsp>) -> anyhow::Result<()> {
         let result = rsp.result;
         let positions = result.positions;
         for position in positions {
@@ -99,7 +99,7 @@ impl Session {
         Ok(())
     }
 
-    fn on_error(&mut self, response: Response<Error>) {
+    fn on_error(&mut self, response: SResponse<SError>) {
         panic!("{:?}", response);
     }
 
@@ -166,7 +166,7 @@ impl Session {
 
     fn send<T: Debug + Serialize>(&mut self, method: &str, params: T) -> anyhow::Result<i64> {
         let id = self.id as i64;
-        let req = Request {
+        let req = SRequest {
             id: id,
             method: method.into(),
             params,

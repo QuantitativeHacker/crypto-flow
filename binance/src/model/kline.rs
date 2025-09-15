@@ -1,7 +1,7 @@
 //! see: https://developers.binance.com/docs/zh-CN/binance-spot-api-docs/testnet/web-socket-streams#klinecandlestick-streams-for-utc
 
+use cryptoflow::chat::SGeneralKline;
 use serde::{Deserialize, Serialize};
-use cryptoflow::chat::GeneralKline;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BinanceKline {
@@ -46,9 +46,9 @@ impl BinanceKline {
     }
 }
 
-impl From<BinanceKline> for GeneralKline {
+impl From<BinanceKline> for SGeneralKline {
     fn from(value: BinanceKline) -> Self {
-        GeneralKline {
+        SGeneralKline {
             time: value.data.k.T,       // K线结束时间
             start_time: value.data.k.t, // K线起始时间
             symbol: value.data.s.to_lowercase(),

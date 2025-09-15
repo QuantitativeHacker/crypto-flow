@@ -43,10 +43,14 @@ pub trait Trade {
     fn handle_login(
         &mut self,
         addr: &SocketAddr,
-        req: &Request<Login>,
+        req: &SRequest<SLogin>,
         tx: &UnboundedSender<Message>,
-    ) -> impl Future<Output = anyhow::Result<Option<Error>>> + Send;
-    fn handle_subscribe(&mut self, addr: &SocketAddr, req: &Request<Vec<String>>) -> Option<Error>;
+    ) -> impl Future<Output = anyhow::Result<Option<SError>>> + Send;
+    fn handle_subscribe(
+        &mut self,
+        addr: &SocketAddr,
+        req: &SRequest<Vec<String>>,
+    ) -> Option<SError>;
     fn validate_symbol(&self, symbol: &str, stream: &str) -> bool;
     fn handle_disconnect(&mut self, addr: &SocketAddr, parser: &JsonParser) -> anyhow::Result<()>;
     fn reply<T: Serialize + Debug>(

@@ -1,8 +1,8 @@
 //! 订单簿深度订阅信息
 //! see: https://developers.binance.com/docs/zh-CN/binance-spot-api-docs/websocket-api/market-data-requests#%E8%AE%A2%E5%8D%95%E8%96%84%E6%B7%B1%E5%BA%A6%E4%BF%A1%E6%81%AF
 
+use cryptoflow::chat::SGeneralDepth;
 use serde::{Deserialize, Serialize};
-use cryptoflow::chat::GeneralDepth;
 
 use crate::model::quote::BinanceQuote;
 
@@ -31,20 +31,20 @@ impl BinanceSpotDepth {
     }
 }
 
-impl From<BinanceSpotDepth> for GeneralDepth<BinanceQuote> {
+impl From<BinanceSpotDepth> for SGeneralDepth<BinanceQuote> {
     fn from(value: BinanceSpotDepth) -> Self {
         let time = now();
         let (symbol, stream) = value.stream.split_once("@").unwrap();
 
         match stream.split_once("@") {
-            Some((_, interval)) => GeneralDepth {
+            Some((_, interval)) => SGeneralDepth {
                 time,
                 symbol: symbol.to_lowercase(),
                 stream: format!("{}@depth:{}", symbol, interval).to_lowercase(),
                 bids: value.data.bids,
                 asks: value.data.asks,
             },
-            None => GeneralDepth {
+            None => SGeneralDepth {
                 time,
                 symbol: symbol.to_lowercase(),
                 stream: format!("{}@depth", symbol).to_lowercase(),
@@ -76,19 +76,19 @@ impl BinanceFutureDepth {
     }
 }
 
-impl From<BinanceFutureDepth> for GeneralDepth<BinanceQuote> {
+impl From<BinanceFutureDepth> for SGeneralDepth<BinanceQuote> {
     fn from(value: BinanceFutureDepth) -> Self {
         let (symbol, stream) = value.stream.split_once("@").unwrap();
 
         match stream.split_once("@") {
-            Some((_, interval)) => GeneralDepth {
+            Some((_, interval)) => SGeneralDepth {
                 time: value.data.event_time,
                 symbol: symbol.to_lowercase(),
                 stream: format!("{}@depth:{}", symbol, interval).to_lowercase(),
                 bids: value.data.b,
                 asks: value.data.a,
             },
-            None => GeneralDepth {
+            None => SGeneralDepth {
                 time: value.data.event_time,
                 symbol: symbol.to_lowercase(),
                 stream: format!("{}@depth", symbol).to_lowercase(),

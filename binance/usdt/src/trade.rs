@@ -129,9 +129,9 @@ impl Trade for UsdtTrade {
                     {
                         Ok(rsp) => {
                             // exchange rej
-                            if let Ok(e) = rsp.json::<cryptoflow::chat::Error>().await {
+                            if let Ok(e) = rsp.json::<cryptoflow::chat::SError>().await {
                                 error!("{:?}", e);
-                                let order = Order::new(
+                                let order = SOrder::new(
                                     id,
                                     symbol,
                                     side,
@@ -155,7 +155,7 @@ impl Trade for UsdtTrade {
                         // network error
                         Err(e) => {
                             error!("{:?}", e);
-                            let order = Order::new(
+                            let order = SOrder::new(
                                 id,
                                 symbol,
                                 side,
@@ -223,16 +223,16 @@ impl Trade for UsdtTrade {
     async fn handle_login(
         &mut self,
         addr: &SocketAddr,
-        req: &Request<Login>,
+        req: &SRequest<SLogin>,
         tx: &UnboundedSender<Message>,
-    ) -> anyhow::Result<Option<Error>> {
+    ) -> anyhow::Result<Option<SError>> {
         let login = &req.params;
         let session_id = login.session_id;
 
         match self.session.get_mut(&session_id) {
             Some(session) => {
                 if session.active() {
-                    return Ok(Some(Error {
+                    return Ok(Some(SError {
                         code: DUPLICATE_LOGIN,
                         msg: "duplicate login".into(),
                     }));
@@ -253,7 +253,11 @@ impl Trade for UsdtTrade {
     }
 
     #[allow(unused)]
-    fn handle_subscribe(&mut self, addr: &SocketAddr, req: &Request<Vec<String>>) -> Option<Error> {
+    fn handle_subscribe(
+        &mut self,
+        addr: &SocketAddr,
+        req: &SRequest<Vec<String>>,
+    ) -> Option<SError> {
         let mut params = Vec::new();
 
         for symbol in req.params.iter() {
@@ -261,20 +265,20 @@ impl Trade for UsdtTrade {
             match symbol.split_once("@") {
                 Some((name, stream)) => {
                     if !self.products.contains_key(name) {
-                        return Some(Error {
+                        return Some(SError {
                             code: error_code::INVALID_SYMBOL,
                             msg: format!("invalid symbol {}", symbol),
                         });
                     }
                     if !self.validate_symbol(name, stream) {
-                        return Some(Error {
+                        return Some(SError {
                             code: error_code::INVALID_STREAM,
                             msg: format!("invalid stream {}", symbol),
                         });
                     }
                 }
                 None => {
-                    return Some(Error {
+                    return Some(SError {
                         code: error_code::INVALID_SYMBOL,
                         msg: format!("invalid symbol {}", symbol),
                     });
@@ -314,7 +318,7 @@ impl Trade for UsdtTrade {
             self.reply(
                 addr,
                 i64::deserialize(id)?,
-                Error {
+                SError {
                     code: error_code::DISCONNECTED,
                     msg: "trade disconnected".into(),
                 },
@@ -329,7 +333,7 @@ impl Trade for UsdtTrade {
         result: T,
     ) -> anyhow::Result<()> {
         if let Some(tx) = self.txs.get_mut(addr) {
-            let response = Response {
+            let response = SResponse {
                 id: id,
                 result: result,
             };

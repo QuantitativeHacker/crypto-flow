@@ -9,44 +9,70 @@ use tokio::signal::unix::{signal, SignalKind};
 #[cfg(windows)]
 use tokio::signal::windows::{ctrl_break, ctrl_c};
 
-use cryptoflow::chat::{Login, PositionReq, PositionRsp, Request};
+use cryptoflow::chat::{SLogin, SPositionReq, SPositionRsp, SRequest};
 use cryptoflow::parser::JsonParser;
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 use tokio::time::Duration;
 use tungstenite::Message;
 use websocket::Connection;
 
+/// 客户端方法枚举
+#[derive(Debug, Clone, Copy)]
+enum ClientMethod {
+    Login,
+    Subscribe,
+    GetProducts,
+    GetPositions,
+    Order,
+    Cancel,
+}
+
+impl ClientMethod {
+    fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "login" => Some(Self::Login),
+            "subscribe" => Some(Self::Subscribe),
+            "get_products" => Some(Self::GetProducts),
+            "get_positions" => Some(Self::GetPositions),
+            "order" => Some(Self::Order),
+            "cancel" => Some(Self::Cancel),
+            _ => None,
+        }
+    }
+}
+
 pub struct Handler {
-    // Python 策略客户端连接：addr -> (to_client_tx, from_client_rx)
-    client_channels: HashMap<SocketAddr, (UnboundedSender<Message>, UnboundedReceiver<Message>)>,
+    /// Python 策略客户端连接：addr -> (to_client_tx, from_client_rx)
+    /// 可以收发消息
+    strategy_client_channels:
+        HashMap<SocketAddr, (UnboundedSender<Message>, UnboundedReceiver<Message>)>,
     keep_running: bool,
 }
 
 impl Handler {
     pub fn new() -> Self {
         Self {
-            client_channels: HashMap::default(),
+            strategy_client_channels: HashMap::default(),
             keep_running: false,
         }
     }
 
     // 新的策略客户端连接接入
-    fn on_client_connect(&mut self, connection: Connection, market: &mut Market) {
+    fn on_strategy_client_connect(&mut self, connection: Connection, market: &mut Market) {
         let (addr, tx, rx) = connection;
-
-        market.handle_connect(&addr, &tx);
-        self.client_channels.insert(addr.clone(), (tx.clone(), rx));
+        market.handle_strategy_client_connect(&addr, &tx);
+        self.strategy_client_channels.insert(addr.clone(), (tx, rx));
     }
 
-    async fn handle_client_login<T: Trade>(
+    async fn handle_strategy_client_login<T: Trade>(
         &mut self,
         addr: &SocketAddr,
         parser: &JsonParser,
         market: &mut Market,
         trade: &mut T,
     ) -> anyhow::Result<()> {
-        if let Some((tx, _)) = self.client_channels.get(addr) {
-            let req = parser.decode::<Request<Login>>()?;
+        if let Some((tx, _)) = self.strategy_client_channels.get(addr) {
+            let req = parser.decode::<SRequest<SLogin>>()?;
             info!("{:?}", req);
 
             let params = &req.params;
@@ -62,14 +88,14 @@ impl Handler {
         Ok(())
     }
 
-    async fn handle_client_subscribe<T: Trade>(
+    async fn handle_strategy_client_subscribe<T: Trade>(
         &mut self,
         addr: &SocketAddr,
         parser: &JsonParser,
         market: &mut Market,
         trade: &mut T,
     ) -> anyhow::Result<()> {
-        let mut req = parser.decode::<Request<Vec<String>>>()?;
+        let mut req = parser.decode::<SRequest<Vec<String>>>()?;
         info!("{:?}", req);
 
         match trade.handle_subscribe(addr, &mut req) {
@@ -79,14 +105,14 @@ impl Handler {
         Ok(())
     }
 
-    fn handle_client_get_products<T: Trade>(
+    fn handle_strategy_client_get_products<T: Trade>(
         &mut self,
         addr: &SocketAddr,
         parser: &JsonParser,
         market: &mut Market,
         trade: &mut T,
     ) -> anyhow::Result<()> {
-        let req = parser.decode::<Request<Vec<String>>>()?;
+        let req = parser.decode::<SRequest<Vec<String>>>()?;
         info!("{:?}", req);
 
         let products = trade.products();
@@ -104,14 +130,14 @@ impl Handler {
         Ok(())
     }
 
-    fn handle_client_get_positions<T: Trade>(
+    fn handle_strategy_client_get_positions<T: Trade>(
         &self,
         addr: &SocketAddr,
         parser: &JsonParser,
         market: &mut Market,
         trade: &mut T,
     ) -> anyhow::Result<()> {
-        let req: Request<PositionReq> = parser.decode()?;
+        let req: SRequest<SPositionReq> = parser.decode()?;
         info!("{:?}", req);
 
         let params = req.params;
@@ -122,7 +148,7 @@ impl Handler {
             Some(positions) => {
                 let params = if symbols.is_empty() {
                     let params: Vec<_> = positions.values().cloned().collect();
-                    PositionRsp {
+                    SPositionRsp {
                         session_id,
                         positions: params,
                     }
@@ -133,7 +159,7 @@ impl Handler {
                             params.push(position.clone());
                         }
                     }
-                    PositionRsp {
+                    SPositionRsp {
                         session_id,
                         positions: params,
                     }
@@ -143,7 +169,7 @@ impl Handler {
             None => market.reply(
                 addr,
                 req.id,
-                PositionRsp {
+                SPositionRsp {
                     session_id,
                     positions: Vec::new(),
                 },
@@ -154,110 +180,146 @@ impl Handler {
     }
 
     #[allow(unused)]
-    async fn handle_client_order<T: Trade>(
+    async fn handle_strategy_client_order<T: Trade>(
         &mut self,
         addr: &SocketAddr,
         parser: &JsonParser,
         market: &mut Market,
         trade: &mut T,
     ) -> anyhow::Result<()> {
-        let req = parser.decode::<Request<BinanceOrder>>()?;
+        let req = parser.decode::<SRequest<BinanceOrder>>()?;
         info!("recv Order {:?}", req);
 
         trade.add_order(addr, &req.params)
     }
 
     #[allow(unused)]
-    async fn handle_client_cancel<T: Trade>(
+    async fn handle_strategy_client_cancel<T: Trade>(
         &mut self,
         addr: &SocketAddr,
         parser: &JsonParser,
         market: &mut Market,
         trade: &mut T,
     ) -> anyhow::Result<()> {
-        let req = parser.decode::<Request<BinanceCancel>>()?;
+        let req = parser.decode::<SRequest<BinanceCancel>>()?;
         info!("{:?}", req);
 
         trade.cancel(addr, &req.params)
     }
 
-    // 解析来自策略客户端的消息，处理 Ping 并返回 Parser
-    fn parse_client_message(&mut self, addr: &SocketAddr, msg: &Message) -> Option<JsonParser> {
-        // if let Some((tx, _)) = self.client_channels.get_mut(addr) {
-        match &msg {
-            // Message::Ping(ping) => {
-            //     if let Err(e) = tx.send(Message::Pong(ping.to_owned())) {
-            //         error!("{}", e);
-            //     }
-            //     return None;
-            // }
-            Message::Text(text) => match JsonParser::new(&text) {
-                Ok(kind) => return Some(kind),
-                Err(e) => {
-                    error!("Invalid request {} from {}({})", msg, addr, e);
-                    return None;
-                }
-            },
-            _ => {
-                warn!("Invalid message {} from strategy client {}", msg, addr);
-                return None;
-            }
-        }
-        // }
-        // None
+    // 解析来自策略客户端的消息， Parser
+    fn parse_strategy_client_message(
+        &mut self,
+        addr: &SocketAddr,
+        msg: &Message,
+    ) -> Option<JsonParser> {
+        let Message::Text(text) = msg else {
+            warn!("Invalid message {} from strategy client {}", msg, addr);
+            return None;
+        };
+
+        JsonParser::new(text)
+            .map_err(|e| {
+                error!("Invalid request {} from {}({})", msg, addr, e);
+            })
+            .ok()
     }
 
     // 将策略客户端的请求分发给 market / trade
-    async fn dispatch_client_request<T: Trade>(
+    async fn dispatch_strategy_client_request<T: Trade>(
         &mut self,
         addr: &SocketAddr,
         parser: JsonParser,
         market: &mut Market,
         trade: &mut T,
     ) -> anyhow::Result<()> {
+        // 检查连接状态
+        self.check_connection_status(addr, &parser, market, trade)?;
+
+        // 解析并处理方法
+        self.handle_client_method(addr, &parser, market, trade)
+            .await
+    }
+
+    /// 检查market和trade的连接状态
+    fn check_connection_status<T: Trade>(
+        &self,
+        addr: &SocketAddr,
+        parser: &JsonParser,
+        market: &mut Market,
+        trade: &mut T,
+    ) -> anyhow::Result<()> {
         if market.disconnected() {
-            return market.handle_disconnect(addr, &parser);
+            return market.handle_disconnect(addr, parser);
         }
-
         if trade.disconnected() {
-            return trade.handle_disconnect(addr, &parser);
-        }
-
-        // 根据策略端的各种请求，分发给 market / trade
-        if let Some(val) = parser.get("method") {
-            if let Some(method) = val.as_str() {
-                match method {
-                    "login" => {
-                        self.handle_client_login(addr, &parser, market, trade)
-                            .await?
-                    }
-                    "subscribe" => {
-                        self.handle_client_subscribe(addr, &parser, market, trade)
-                            .await?
-                    }
-                    "get_products" => {
-                        self.handle_client_get_products(addr, &parser, market, trade)?
-                    }
-                    "get_positions" => {
-                        self.handle_client_get_positions(addr, &parser, market, trade)?
-                    }
-                    "order" => {
-                        self.handle_client_order(addr, &parser, market, trade)
-                            .await?
-                    }
-                    "cancel" => {
-                        self.handle_client_cancel(addr, &parser, market, trade)
-                            .await?
-                    }
-                    _ => (),
-                }
-            }
+            return trade.handle_disconnect(addr, parser);
         }
         Ok(())
     }
 
+    /// 处理客户端方法调用
+    async fn handle_client_method<T: Trade>(
+        &mut self,
+        addr: &SocketAddr,
+        parser: &JsonParser,
+        market: &mut Market,
+        trade: &mut T,
+    ) -> anyhow::Result<()> {
+        let method = parser
+            .get("method")
+            .and_then(|v| v.as_str())
+            .and_then(ClientMethod::from_str);
+
+        if let Some(method) = method {
+            self.execute_client_method(method, addr, parser, market, trade)
+                .await?
+        }
+
+        Ok(())
+    }
+
+    /// 执行具体的客户端方法
+    async fn execute_client_method<T: Trade>(
+        &mut self,
+        method: ClientMethod,
+        addr: &SocketAddr,
+        parser: &JsonParser,
+        market: &mut Market,
+        trade: &mut T,
+    ) -> anyhow::Result<()> {
+        match method {
+            ClientMethod::Login => {
+                self.handle_strategy_client_login(addr, parser, market, trade)
+                    .await
+            }
+            ClientMethod::Subscribe => {
+                self.handle_strategy_client_subscribe(addr, parser, market, trade)
+                    .await
+            }
+            ClientMethod::GetProducts => {
+                self.handle_strategy_client_get_products(addr, parser, market, trade)
+            }
+            ClientMethod::GetPositions => {
+                self.handle_strategy_client_get_positions(addr, parser, market, trade)
+            }
+            ClientMethod::Order => {
+                self.handle_strategy_client_order(addr, parser, market, trade)
+                    .await
+            }
+            ClientMethod::Cancel => {
+                self.handle_strategy_client_cancel(addr, parser, market, trade)
+                    .await
+            }
+        }
+    }
+
     // 小批量清理/处理各客户端消息，提升吞吐与公平性
-    async fn drain_client_messages<T: Trade>(&mut self, market: &mut Market, trade: &mut T) {
+    async fn drain_strategy_client_messages<T: Trade>(
+        &mut self,
+        market: &mut Market,
+        trade: &mut T,
+    ) {
         // 先收集，后处理，避免在借用 client_channels 时调用 &mut self 的异步方法造成可变借用冲突
         let mut batch: Vec<(
             SocketAddr,
@@ -265,7 +327,7 @@ impl Handler {
             bool,
         )> = Vec::new();
 
-        for (addr, (_, rx)) in self.client_channels.iter_mut() {
+        for (addr, (_, rx)) in self.strategy_client_channels.iter_mut() {
             // 一次最多处理MAX_CLIENT_MSG_BATCH个
             let mut cnt = 0usize;
             loop {
@@ -298,9 +360,9 @@ impl Handler {
                     }
                     _ => {
                         // 成功接收，那么解析消息并处理
-                        if let Some(req) = self.parse_client_message(&addr, &msg) {
+                        if let Some(req) = self.parse_strategy_client_message(&addr, &msg) {
                             if let Err(e) = self
-                                .dispatch_client_request(&addr, req, market, trade)
+                                .dispatch_strategy_client_request(&addr, req, market, trade)
                                 .await
                             {
                                 error!("Dispatch client request failed, err:{}, msg: {}", e, msg);
@@ -343,7 +405,7 @@ impl Handler {
             tokio::select! {
                 // 新的客户端连接
                 Some(connection) = client_conn_rx.recv() => {
-                    self.on_client_connect(connection, market);
+                    self.on_strategy_client_connect(connection, market);
                 },
                 // 系统信号
                 Some(_) = interrupt.recv() => {
@@ -367,7 +429,7 @@ impl Handler {
             }
 
             // 每轮 select 后，批量处理各客户端队列中的消息
-            self.drain_client_messages(market, trade).await;
+            self.drain_strategy_client_messages(market, trade).await;
         }
 
         Ok(())
@@ -379,7 +441,7 @@ impl Handler {
         market: &mut Market,
         trade: &mut T,
     ) -> anyhow::Result<()> {
-        self.client_channels.remove(addr);
+        self.strategy_client_channels.remove(addr);
         market.handle_close(addr).await?;
         trade.handle_close(addr)?;
 

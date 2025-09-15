@@ -1,6 +1,4 @@
-use crate::model::session::{
-    SessionLogonResponse, SessionLogonResult, SessionLogoutResponse, SessionStatusResponse,
-};
+use crate::model::session::{SessionLogonResponse, SessionLogoutResponse, SessionStatusResponse};
 use serde_json::Value;
 use tracing::{error, info, warn};
 use websocket::{BinanceWsApiWebsocketClient, Credentials};

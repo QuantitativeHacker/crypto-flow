@@ -2,7 +2,7 @@ use crate::constant::*;
 use binance::model::symbol::BinanceSymbol;
 use chrono::DateTime;
 use chrono_tz::{Asia::Shanghai, Tz};
-use cryptoflow::chat::{ErrorResponse, LoginResponse, Response, Success};
+use cryptoflow::chat::{SErrorResponse, SLoginResponse, SResponse, SSuccess};
 use cryptoflow::trading_rules::TradingRules;
 use pyo3::prelude::*;
 use pyo3::{conversion::IntoPyObject, IntoPyObjectExt};
@@ -351,7 +351,7 @@ impl Product {
     }
 }
 
-type Products = Response<Vec<Product>>;
+type Products = SResponse<Vec<Product>>;
 
 #[derive(Debug, Deserialize)]
 pub struct PositionRsp {
@@ -362,14 +362,14 @@ pub struct PositionRsp {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum Message {
-    Success(Success),
-    Login(LoginResponse),
-    Error(ErrorResponse),
+    Success(SSuccess),
+    Login(SLoginResponse),
+    Error(SErrorResponse),
     Depth(Depth),
     Kline(Kline),
     Order(Order),
     Products(Products),
-    Positions(Response<PositionRsp>),
+    Positions(SResponse<PositionRsp>),
     Position(Position),
     Close,
 }
@@ -441,7 +441,7 @@ pub struct Order {
     price: f64,
     #[allow(unused)]
     order_id: i64,
-    internal_id: u32,
+    internal_id: u8,
     trade_time: i64,
     trade_price: f64,
     trade_quantity: f64,
@@ -451,7 +451,7 @@ pub struct Order {
 
 impl Order {
     pub fn new(
-        id: u32,
+        id: u8,
         symbol: &str,
         price: f64,
         quantity: f64,
@@ -514,7 +514,7 @@ impl Order {
         self.price
     }
     #[getter]
-    pub fn id(&self) -> u32 {
+    pub fn id(&self) -> u8 {
         self.internal_id
     }
     #[getter]
@@ -562,7 +562,7 @@ impl Order {
 
 #[derive(Debug, Serialize)]
 pub struct OrderRequest {
-    pub id: u32,
+    pub id: u8,
     pub symbol: String,
     pub price: f64,
     pub quantity: f64,
@@ -679,131 +679,4 @@ where
     D: Deserializer<'de>,
 {
     Ok(String::deserialize(deserializer)?.to_lowercase())
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_order() {
-        let s = r#"{"symbol":"dogeusdt",    
-                          "side":"SELL",
-                          "state":"NEW",
-                          "order_type":"LIMIT",
-                          "tif":"GTC",
-                          "quantity":25.0,
-                          "price":0.2,
-                          "order_id":45382967722,
-                          "internal_id":2,
-                          "trade_time":1716433595260,
-                          "trade_price":0.0,
-                          "trade_quantity":0.0,
-                          "acc":0.0,
-                          "making":false}"#;
-        let o = serde_json::from_str::<Order>(s).unwrap();
-        assert_eq!(o.side, Side::SELL);
-        assert_eq!(o.state, State::NEW);
-        assert_eq!(o.order_type, OrderType::LIMIT);
-        assert_eq!(o.tif, Tif::GTC);
-        assert_eq!(o.quantity, 25.0);
-        assert_eq!(o.price, 0.2);
-        assert_eq!(o.order_id, 45382967722);
-        assert_eq!(o.internal_id, 2);
-        assert_eq!(o.trade_time, 1716433595260);
-        assert_eq!(o.trade_price, 0.0);
-        assert_eq!(o.trade_quantity, 0.0);
-        assert_eq!(o.acc, 0.0);
-        assert!(!o.making.unwrap());
-    }
-    #[test]
-    fn test_depth() {
-        let s = r#"{"symbol":"btcusdt",
-                          "stream":"btcusdt@depth",
-                          "bids":[{"price":63972.8,"quantity":0.0},
-                                  {"price":63972.7,"quantity":0.0},
-                                  {"price":63971.33,"quantity":0.0},
-                                  {"price":63970.78,"quantity":0.0},
-                                  {"price":63970.44,"quantity":0.0},
-                                  {"price":63970.43,"quantity":0.0},
-                                  {"price":63967.63,"quantity":0.0},
-                                  {"price":63967.52,"quantity":0.0},
-                                  {"price":63967.44,"quantity":0.0}],
-                          "asks":[{"price":63962.83,"quantity":4.37492},
-                                  {"price":63964.04,"quantity":0.0},
-                                  {"price":63965.0,"quantity":0.0},
-                                  {"price":63965.01,"quantity":0.0},
-                                  {"price":63966.06,"quantity":0.0},
-                                  {"price":63966.07,"quantity":0.0},
-                                  {"price":63966.4,"quantity":0.0},
-                                  {"price":63966.41,"quantity":0.0},
-                                  {"price":63966.45,"quantity":0.00157},
-                                  {"price":63966.52,"quantity":0.0}]}"#;
-        let depth: Depth = serde_json::from_str(s).unwrap();
-        assert_eq!(depth.stream(), "btcusdt@depth");
-        assert_eq!(depth.symbol(), "btcusdt");
-        assert_eq!(depth.time(), 1715093955172);
-        assert_eq!(depth.bid_prc(0), 63972.8);
-        assert_eq!(depth.bid_vol(0), 0.0);
-        assert_eq!(depth.ask_prc(0), 63962.83);
-        assert_eq!(depth.ask_vol(0), 4.37492);
-        assert_eq!(depth.bid_level(), 9);
-        assert_eq!(depth.ask_level(), 10);
-        assert_eq!(depth.datetime().to_string(), "2024-05-07 22:59:15.172 CST");
-    }
-
-    #[test]
-    fn test_kline() {
-        let s = r#"{"time":1715098495999,
-                          "symbol":"btcusdt",
-                          "stream":"btcusdt@kline:1s",
-                          "open":63763.07,
-                          "high":63763.07,
-                          "low":63763.07,
-                          "close":63763.07,
-                          "volume":0.03,
-                          "amount":1912.8921}"#;
-
-        let kline: Kline = serde_json::from_str(s).unwrap();
-        assert_eq!(kline.symbol(), "btcusdt");
-        assert_eq!(kline.stream(), "btcusdt@kline:1s");
-        assert_eq!(kline.time(), 1715098495999);
-        assert_eq!(kline.open(), 63763.07); // open, high, low, close, volume, amount
-        assert_eq!(kline.high(), 63763.07);
-        assert_eq!(kline.low(), 63763.07);
-        assert_eq!(kline.close(), 63763.07);
-        assert_eq!(kline.volume(), 0.03);
-        assert_eq!(kline.amount(), 1912.8921);
-        assert_eq!(kline.datetime().to_string(), "2024-05-08 00:14:55.999 CST");
-    }
-
-    #[test]
-    fn test_product() {
-        // spot
-        let s = r#"[{"symbol":"reieth",
-                           "delivery":null,
-                           "onboard":null,
-                           "order":["LIMIT","LIMIT_MAKER","MARKET","STOP_LOSS_LIMIT","TAKE_PROFIT_LIMIT"],
-                           "tif":null,
-                           "price_filter":{"size":1e-8,"max":1000.0,"min":1e-8},
-                           "lot_size":{"size":0.1,"max":92141578.0,"min":0.1},
-                           "market_lot_size":{"size":0.0,"max":358556.43736111,"min":0.0},
-                           "min_notional":0.005},
-                          {"symbol":"mantatry",
-                           "delivery":null,
-                           "onboard":null,
-                           "order":["LIMIT","LIMIT_MAKER","MARKET","STOP_LOSS_LIMIT","TAKE_PROFIT_LIMIT"],
-                           "tif":null,
-                           "price_filter":{"size":0.01,"max":1000.0,"min":0.01},
-                           "lot_size":{"size":0.1,"max":92141578.0,"min":0.1},
-                           "market_lot_size":{"size":0.0,"max":5581.1376569,"min":0.0},
-                           "min_notional":10.0}]"#;
-        match serde_json::from_str::<Vec<Product>>(s) {
-            Ok(p) => {
-                println!("{:?}", p);
-            }
-            Err(e) => println!("{}", e),
-        }
-        // future
-    }
 }

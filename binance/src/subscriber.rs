@@ -1,4 +1,4 @@
-use cryptoflow::chat::{ErrorResponse, Response};
+use cryptoflow::chat::{SErrorResponse, SResponse};
 use serde::Serialize;
 use std::collections::{HashMap, HashSet};
 use tokio::sync::mpsc::UnboundedSender;
@@ -18,7 +18,7 @@ impl Subscriber {
         }
     }
 
-    pub fn on_response<T: Serialize>(&mut self, mut response: Response<T>) -> anyhow::Result<()> {
+    pub fn on_response<T: Serialize>(&mut self, mut response: SResponse<T>) -> anyhow::Result<()> {
         if let Some(id) = self.ids.remove(&response.id) {
             response.id = id;
             self.tx
@@ -27,7 +27,7 @@ impl Subscriber {
         Ok(())
     }
 
-    pub fn on_error(&mut self, mut response: ErrorResponse) -> anyhow::Result<()> {
+    pub fn on_error(&mut self, mut response: SErrorResponse) -> anyhow::Result<()> {
         if let Some(id) = self.ids.remove(&response.id) {
             response.id = id;
             self.tx

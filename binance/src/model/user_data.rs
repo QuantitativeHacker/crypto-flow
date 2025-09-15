@@ -119,20 +119,22 @@ pub struct ListenStatus {
     pub r: String,
 }
 
-
 /// 用户数据事件类型
 #[derive(Debug, Deserialize, Clone)]
 #[serde(tag = "e")]
 pub enum UserDataEvent {
     /// 订单执行报告
+    /// See: https://developers.binance.com/docs/zh-CN/binance-spot-api-docs/user-data-stream#%E8%AE%A2%E5%8D%95%E6%9B%B4%E6%96%B0
     #[serde(rename = "executionReport")]
     ExecutionReport(ExecutionReport),
 
     /// 账户余额更新
+    /// See: https://developers.binance.com/docs/zh-CN/binance-spot-api-docs/user-data-stream#%E4%BD%99%E9%A2%9D%E6%9B%B4%E6%96%B0
     #[serde(rename = "balanceUpdate")]
     BalanceUpdate(BalanceUpdate),
 
     /// 账户位置更新
+    /// See: https://developers.binance.com/docs/zh-CN/binance-spot-api-docs/user-data-stream#%E8%B4%A6%E6%88%B7%E6%9B%B4%E6%96%B0
     #[serde(rename = "outboundAccountPosition")]
     OutboundAccountPosition(OutboundAccountPosition),
 

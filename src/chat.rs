@@ -2,38 +2,38 @@ use serde::{Deserialize, Serialize};
 use std::{fmt::Debug, str::FromStr};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Request<T> {
+pub struct SRequest<T> {
     pub id: i64,
     pub method: String,
     pub params: T,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Response<T> {
+pub struct SResponse<T> {
     pub id: i64,
     pub result: T,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct PositionReq {
+pub struct SPositionReq {
     pub session_id: u16,
     pub symbols: Vec<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct PositionRsp {
+pub struct SPositionRsp {
     pub session_id: u16,
     pub positions: Vec<Position>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Error {
+pub struct SError {
     pub code: i32,
     pub msg: String,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct Login {
+pub struct SLogin {
     pub session_id: u16,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
@@ -41,7 +41,7 @@ pub struct Login {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct GeneralDepth<T> {
+pub struct SGeneralDepth<T> {
     pub time: i64,
     pub symbol: String,
     pub stream: String,
@@ -50,7 +50,7 @@ pub struct GeneralDepth<T> {
 }
 
 #[derive(Debug, Clone, Serialize)]
-pub struct GeneralKline {
+pub struct SGeneralKline {
     pub time: i64,       // 这根K线的结束时间 (T)
     pub start_time: i64, // 这根K线的起始时间 (t)
     pub symbol: String,
@@ -72,7 +72,7 @@ pub struct GeneralKline {
 
 /// 订单信息
 #[derive(Debug, Serialize)]
-pub struct Order {
+pub struct SOrder {
     pub state: State,
     pub order_id: i64,
     pub symbol: String,
@@ -89,7 +89,7 @@ pub struct Order {
     pub making: bool,
 }
 
-impl Order {
+impl SOrder {
     pub fn new(
         id: u32,
         symbol: String,
@@ -311,6 +311,6 @@ pub struct Position {
     pub net: f64,
 }
 
-pub type Success = Response<Option<u8>>;
-pub type LoginResponse = Response<Login>;
-pub type ErrorResponse = Response<Error>;
+pub type SSuccess = SResponse<Option<u8>>;
+pub type SLoginResponse = SResponse<SLogin>;
+pub type SErrorResponse = SResponse<SError>;

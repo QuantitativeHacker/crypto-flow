@@ -57,7 +57,7 @@ impl Market {
         method: String,
         param: T,
     ) -> anyhow::Result<i64> {
-        let req: Request<T> = Request {
+        let req: SRequest<T> = SRequest {
             id: self.id,
             method: method,
             params: param,
@@ -65,7 +65,11 @@ impl Market {
 
         info!("Market send msg to binance:{:?}", req);
         self.client
-            .wsapi_call(&req.method, serde_json::to_value(&req.params)?, req.id)
+            .wsapi_call(
+                &req.method,
+                serde_json::to_value(&req.params)?,
+                req.id as i64,
+            )
             .await?;
 
         self.requests.insert(req.id, addr.clone());
@@ -81,7 +85,7 @@ impl Market {
         result: T,
     ) -> anyhow::Result<()> {
         if let Some(tx) = self.txs.get_mut(addr) {
-            let response = Response {
+            let response = SResponse {
                 id: id,
                 result: result,
             };
@@ -151,7 +155,7 @@ impl Market {
         Ok(())
     }
 
-    fn handle_error(&mut self, err: ErrorResponse) {
+    fn handle_error(&mut self, err: SErrorResponse) {
         if let Some(index) = self.requests.remove(&err.id) {
             if let Some(subscriber) = self.subscribers.get_mut(&index) {
                 if let Err(e) = subscriber.on_error(err) {
@@ -161,7 +165,7 @@ impl Market {
         }
     }
 
-    fn handle_success(&mut self, suc: Response<Option<i64>>) {
+    fn handle_success(&mut self, suc: SResponse<Option<i64>>) {
         if let Some(index) = self.requests.remove(&suc.id) {
             if let Some(subscriber) = self.subscribers.get_mut(&index) {
                 if let Err(e) = subscriber.on_response(suc) {
@@ -185,15 +189,15 @@ impl Market {
                 serde_json::to_string(&book)?
             }
             MarketStream::Kline(kline) => {
-                let kline: GeneralKline = kline.into();
+                let kline: SGeneralKline = kline.into();
                 serde_json::to_string(&kline)?
             }
             MarketStream::SpotDepth(depth) => {
-                let depth: GeneralDepth<BinanceQuote> = depth.into();
+                let depth: SGeneralDepth<BinanceQuote> = depth.into();
                 serde_json::to_string(&depth)?
             }
             MarketStream::FutureDepth(depth) => {
-                let depth: GeneralDepth<BinanceQuote> = depth.into();
+                let depth: SGeneralDepth<BinanceQuote> = depth.into();
                 serde_json::to_string(&depth)?
             }
         };
@@ -209,11 +213,19 @@ impl Market {
         Ok(())
     }
 
-    pub fn handle_connect(&mut self, addr: &SocketAddr, tx: &UnboundedSender<Message>) {
+    pub fn handle_strategy_client_connect(
+        &mut self,
+        addr: &SocketAddr,
+        tx: &UnboundedSender<Message>,
+    ) {
         self.txs.insert(addr.clone(), tx.clone());
     }
 
-    pub fn handle_login(&mut self, addr: &SocketAddr, req: &Request<Login>) -> anyhow::Result<()> {
+    pub fn handle_login(
+        &mut self,
+        addr: &SocketAddr,
+        req: &SRequest<SLogin>,
+    ) -> anyhow::Result<()> {
         if let Some(tx) = self.txs.get_mut(addr) {
             if !self.subscribers.contains_key(addr) {
                 info!("New subscriber {}", addr);
@@ -227,13 +239,13 @@ impl Market {
     pub async fn handle_subscribe(
         &mut self,
         addr: &SocketAddr,
-        req: &mut Request<Vec<String>>,
+        req: &mut SRequest<Vec<String>>,
     ) -> anyhow::Result<()> {
         if !self.validate_login(addr) {
             return self.reply(
                 addr,
                 req.id,
-                Error {
+                SError {
                     code: NOT_LOGIN,
                     msg: "please login first".into(),
                 },
@@ -299,7 +311,7 @@ impl Market {
             self.reply(
                 addr,
                 i64::deserialize(id)?,
-                Error {
+                SError {
                     code: DISCONNECTED,
                     msg: "market disconnected".into(),
                 },

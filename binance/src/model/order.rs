@@ -25,7 +25,7 @@ pub mod usdt {
     use serde::{Deserialize, Serialize};
 
     use super::super::deserialize_symbol;
-    use crate::{Order, OrderTrait};
+    use crate::{OrderTrait, SOrder};
 
     #[derive(Debug, Serialize, Deserialize, Clone)]
     #[allow(non_snake_case)]
@@ -70,7 +70,7 @@ pub mod usdt {
     }
 
     #[derive(Debug, Serialize, Deserialize, Clone)]
-    #[serde(into = "Order")]
+    #[serde(into = "SOrder")]
     #[allow(non_snake_case)]
     pub struct OrderUpdate {
         pub e: String,    // 事件类型 "ORDER_TRADE_UPDATE"
@@ -100,7 +100,7 @@ pub mod usdt {
         }
     }
 
-    impl From<OrderUpdate> for Order {
+    impl From<OrderUpdate> for SOrder {
         fn from(value: OrderUpdate) -> Self {
             let o = value.o;
             let client_order_id = o.c.parse::<u64>().unwrap_or_default();

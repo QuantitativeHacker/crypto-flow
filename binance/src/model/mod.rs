@@ -37,7 +37,7 @@ pub enum MarketStream {
 // 用户数据事件结构体已移动到 user_data.rs 模块
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-#[serde(into = "Order")]
+#[serde(into = "SOrder")]
 pub struct ExecutionReport {
     pub e: String, // 事件类型
     pub E: i64,    // 事件时间
@@ -118,7 +118,7 @@ impl OrderTrait for ExecutionReport {
     }
 }
 
-impl From<ExecutionReport> for Order {
+impl From<ExecutionReport> for SOrder {
     fn from(value: ExecutionReport) -> Self {
         let client_order_id = match value.X {
             State::CANCELED => &value.C,
@@ -318,8 +318,8 @@ pub struct EventMessage {
 #[serde(untagged)]
 #[allow(unused)]
 pub enum Event {
-    Success(Response<Option<i64>>),
-    Error(ErrorResponse),
+    Success(SResponse<Option<i64>>),
+    Error(SErrorResponse),
     Stream(MarketStream),
     // spot
     UserDataEvent(UserDataEvent),
