@@ -39,20 +39,24 @@ pub trait Trade {
     fn process(&mut self) -> impl Future<Output = anyhow::Result<bool>> + Send;
     fn add_order(&mut self, addr: &SocketAddr, order: &BinanceOrder) -> anyhow::Result<()>;
     fn cancel(&mut self, addr: &SocketAddr, cancel: &BinanceCancel) -> anyhow::Result<()>;
-    fn handle_close(&mut self, addr: &SocketAddr) -> anyhow::Result<()>;
-    fn handle_login(
+    fn handle_strategy_client_close(&mut self, addr: &SocketAddr) -> anyhow::Result<()>;
+    fn handle_strategy_client_login(
         &mut self,
         addr: &SocketAddr,
         req: &SRequest<SLogin>,
         tx: &UnboundedSender<Message>,
     ) -> impl Future<Output = anyhow::Result<Option<SError>>> + Send;
-    fn handle_subscribe(
+    fn handle_strategy_client_subscribe(
         &mut self,
         addr: &SocketAddr,
         req: &SRequest<Vec<String>>,
     ) -> Option<SError>;
     fn validate_symbol(&self, symbol: &str, stream: &str) -> bool;
-    fn handle_disconnect(&mut self, addr: &SocketAddr, parser: &JsonParser) -> anyhow::Result<()>;
+    fn handle_strategy_client_disconnect(
+        &mut self,
+        addr: &SocketAddr,
+        parser: &JsonParser,
+    ) -> anyhow::Result<()>;
     fn reply<T: Serialize + Debug>(
         &mut self,
         addr: &SocketAddr,

@@ -21,6 +21,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tracing::{debug, error, info, warn};
 use tungstenite::Message;
 
+/// 通过rest api获取所有交易对
 async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, BinanceSymbol>> {
     let rsp = rest.get("/api/v3/exchangeInfo", &[], false).await?;
     let results: serde_json::Value = serde_json::from_str(&rsp.text().await?)?;
@@ -33,19 +34,21 @@ async fn get_positions(rest: &Arc<Rest>) -> anyhow::Result<HashMap<String, Binan
         products.insert(result.symbol.clone(), result);
     }
 
-    info!("products {}", products.len());
+    info!("There are {} products in binance spot", products.len());
     Ok(products)
 }
 
 pub struct SpotTrade {
     rest: Arc<Rest>,
-    txs: HashMap<SocketAddr, UnboundedSender<Message>>,
+
     account: Account<DefaultUserDataHandler>,
     margin: bool,
+    // addr -> tx
+    txs: HashMap<SocketAddr, UnboundedSender<Message>>,
     // addr -> session_id
-    session_id: HashMap<SocketAddr, u16>,
+    session_id_map: HashMap<SocketAddr, u16>,
     // session_id -> session
-    session: HashMap<u16, Session>,
+    session_map: HashMap<u16, Session>,
     posdb: Arc<PositionDB>,
     products: HashMap<String, BinanceSymbol>,
 }
@@ -63,8 +66,8 @@ impl SpotTrade {
             txs: HashMap::default(),
             account,
             margin,
-            session_id: HashMap::default(),
-            session: HashMap::default(),
+            session_id_map: HashMap::default(),
+            session_map: HashMap::default(),
             posdb: Arc::new(PositionDB::new("pos.db").await?),
             products,
         })
@@ -226,10 +229,12 @@ impl Trade for SpotTrade {
         Ok(())
     }
 
-    fn handle_close(&mut self, addr: &SocketAddr) -> anyhow::Result<()> {
+    /// 当某个addr的client关闭时，需要清理掉它的session
+    /// txs, session_id_map, session_map
+    fn handle_strategy_client_close(&mut self, addr: &SocketAddr) -> anyhow::Result<()> {
         if let Some(_) = self.txs.remove(addr) {
-            match self.session_id.remove(addr) {
-                Some(id) => match self.session.get_mut(&id) {
+            match self.session_id_map.remove(addr) {
+                Some(id) => match self.session_map.get_mut(&id) {
                     Some(session) => {
                         session.set_active(None);
                     }
@@ -241,7 +246,11 @@ impl Trade for SpotTrade {
         Ok(())
     }
 
-    async fn handle_login(
+    /// 处理登录请求
+    /// 如果session_id已存在，且active，则返回重复登录错误；
+    /// 如果session_id已存在，且inactive，那么设置为新的session；
+    /// 如果session_id不存在，则创建新的session。
+    async fn handle_strategy_client_login(
         &mut self,
         addr: &SocketAddr,
         req: &SRequest<SLogin>,
@@ -250,7 +259,7 @@ impl Trade for SpotTrade {
         let login = &req.params;
         let session_id = login.session_id;
 
-        match self.session.get_mut(&session_id) {
+        match self.session_map.get_mut(&session_id) {
             Some(session) => {
                 if session.active() {
                     return Ok(Some(SError {
@@ -263,18 +272,19 @@ impl Trade for SpotTrade {
             }
             None => {
                 let session = Session::new(session_id, self.posdb.clone(), tx.clone()).await?;
-                self.session.insert(session_id, session);
+                self.session_map.insert(session_id, session);
             }
         }
+
         self.txs.insert(addr.clone(), tx.clone());
-        self.session_id.insert(addr.clone(), session_id);
+        self.session_id_map.insert(addr.clone(), session_id);
 
         info!("session addr {} -> {}", addr, session_id);
         Ok(None)
     }
 
     #[allow(unused)]
-    fn handle_subscribe(
+    fn handle_strategy_client_subscribe(
         &mut self,
         addr: &SocketAddr,
         req: &SRequest<Vec<String>>,
@@ -334,7 +344,11 @@ impl Trade for SpotTrade {
         }
     }
 
-    fn handle_disconnect(&mut self, addr: &SocketAddr, parser: &JsonParser) -> anyhow::Result<()> {
+    fn handle_strategy_client_disconnect(
+        &mut self,
+        addr: &SocketAddr,
+        parser: &JsonParser,
+    ) -> anyhow::Result<()> {
         if let Some(id) = parser.get("id") {
             self.reply(
                 addr,
@@ -381,7 +395,7 @@ impl SpotTrade {
             Ok(client_order_id) => {
                 let session_id = (client_order_id >> 32) as u16;
 
-                match self.session.get_mut(&session_id) {
+                match self.session_map.get_mut(&session_id) {
                     Some(session) => {
                         if let Err(e) = session.on_order(order) {
                             error!("{}", e);

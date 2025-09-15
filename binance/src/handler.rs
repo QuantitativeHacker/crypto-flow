@@ -77,12 +77,12 @@ impl Handler {
 
             let params = &req.params;
             if params.trading {
-                match trade.handle_login(addr, &req, tx).await? {
+                match trade.handle_strategy_client_login(addr, &req, tx).await? {
                     Some(e) => trade.reply(addr, req.id, e)?,
                     None => {}
                 }
             }
-            market.handle_login(addr, &req)?;
+            market.handle_strategy_client_login(addr, &req)?;
         }
 
         Ok(())
@@ -98,9 +98,13 @@ impl Handler {
         let mut req = parser.decode::<SRequest<Vec<String>>>()?;
         info!("{:?}", req);
 
-        match trade.handle_subscribe(addr, &mut req) {
-            Some(e) => market.reply(addr, req.id, e)?,
-            None => market.handle_subscribe(addr, &mut req).await?,
+        match trade.handle_strategy_client_subscribe(addr, &mut req) {
+            Some(e) => market.reply_to_strategy_client(addr, req.id, e)?,
+            None => {
+                market
+                    .handle_strategy_client_subscribe(addr, &mut req)
+                    .await?
+            }
         }
         Ok(())
     }
@@ -113,18 +117,17 @@ impl Handler {
         trade: &mut T,
     ) -> anyhow::Result<()> {
         let req = parser.decode::<SRequest<Vec<String>>>()?;
-        info!("{:?}", req);
 
         let products = trade.products();
         if req.params.is_empty() {
             let params: Vec<_> = products.values().cloned().collect();
-            market.reply(addr, req.id, params)?;
+            market.reply_to_strategy_client(addr, req.id, params)?;
         } else {
             let mut params = vec![];
             for product in products.values() {
                 params.push(product);
             }
-            market.reply(addr, req.id, params)?;
+            market.reply_to_strategy_client(addr, req.id, params)?;
         }
 
         Ok(())
@@ -164,9 +167,9 @@ impl Handler {
                         positions: params,
                     }
                 };
-                market.reply(addr, req.id, params)?;
+                market.reply_to_strategy_client(addr, req.id, params)?;
             }
-            None => market.reply(
+            None => market.reply_to_strategy_client(
                 addr,
                 req.id,
                 SPositionRsp {
@@ -250,10 +253,10 @@ impl Handler {
         trade: &mut T,
     ) -> anyhow::Result<()> {
         if market.disconnected() {
-            return market.handle_disconnect(addr, parser);
+            return market.handle_strategy_client_disconnect(addr, parser);
         }
         if trade.disconnected() {
-            return trade.handle_disconnect(addr, parser);
+            return trade.handle_strategy_client_disconnect(addr, parser);
         }
         Ok(())
     }
@@ -442,8 +445,8 @@ impl Handler {
         trade: &mut T,
     ) -> anyhow::Result<()> {
         self.strategy_client_channels.remove(addr);
-        market.handle_close(addr).await?;
-        trade.handle_close(addr)?;
+        market.handle_strategy_client_close(addr).await?;
+        trade.handle_strategy_client_close(addr)?;
 
         Ok(())
     }

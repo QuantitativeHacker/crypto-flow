@@ -205,7 +205,7 @@ impl Trade for UsdtTrade {
         Ok(())
     }
 
-    fn handle_close(&mut self, addr: &SocketAddr) -> anyhow::Result<()> {
+    fn handle_strategy_client_close(&mut self, addr: &SocketAddr) -> anyhow::Result<()> {
         if let Some(_) = self.txs.remove(addr) {
             match self.session_id.remove(addr) {
                 Some(id) => match self.session.get_mut(&id) {
@@ -220,7 +220,7 @@ impl Trade for UsdtTrade {
         Ok(())
     }
 
-    async fn handle_login(
+    async fn handle_strategy_client_login(
         &mut self,
         addr: &SocketAddr,
         req: &SRequest<SLogin>,
@@ -253,7 +253,7 @@ impl Trade for UsdtTrade {
     }
 
     #[allow(unused)]
-    fn handle_subscribe(
+    fn handle_strategy_client_subscribe(
         &mut self,
         addr: &SocketAddr,
         req: &SRequest<Vec<String>>,
@@ -313,7 +313,11 @@ impl Trade for UsdtTrade {
         }
     }
 
-    fn handle_disconnect(&mut self, addr: &SocketAddr, parser: &JsonParser) -> anyhow::Result<()> {
+    fn handle_strategy_client_disconnect(
+        &mut self,
+        addr: &SocketAddr,
+        parser: &JsonParser,
+    ) -> anyhow::Result<()> {
         if let Some(id) = parser.get("id") {
             self.reply(
                 addr,

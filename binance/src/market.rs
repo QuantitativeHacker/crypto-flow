@@ -51,7 +51,7 @@ impl Market {
         self.disconnected
     }
 
-    async fn send<T: Serialize + Debug>(
+    async fn send_to_exchange<T: Serialize + Debug>(
         &mut self,
         addr: &SocketAddr,
         method: String,
@@ -78,7 +78,7 @@ impl Market {
         Ok(req.id)
     }
 
-    pub fn reply<T: Serialize + Debug>(
+    pub fn reply_to_strategy_client<T: Serialize + Debug>(
         &mut self,
         addr: &SocketAddr,
         id: i64,
@@ -108,7 +108,7 @@ impl Market {
             Some(value) => {
                 // 直接从 JSON 反序列化 Event
                 match serde_json::from_value::<Event>(value) {
-                    Ok(e) => self.handle_event(e),
+                    Ok(e) => self.handle_strategy_client_event(e),
                     Err(e) => error!("{}", e),
                 }
             }
@@ -125,7 +125,7 @@ impl Market {
 
 // handler
 impl Market {
-    pub async fn handle_close(&mut self, addr: &SocketAddr) -> anyhow::Result<()> {
+    pub async fn handle_strategy_client_close(&mut self, addr: &SocketAddr) -> anyhow::Result<()> {
         if let Some(_) = self.txs.remove(addr) {
             let mut unsubscribe = Vec::new();
             let val = self.subscribers.remove(addr);
@@ -149,13 +149,14 @@ impl Market {
             }
 
             if !unsubscribe.is_empty() {
-                self.send(addr, "UNSUBSCRIBE".into(), unsubscribe).await?;
+                self.send_to_exchange(addr, "UNSUBSCRIBE".into(), unsubscribe)
+                    .await?;
             }
         }
         Ok(())
     }
 
-    fn handle_error(&mut self, err: SErrorResponse) {
+    fn handle_strategy_client_error(&mut self, err: SErrorResponse) {
         if let Some(index) = self.requests.remove(&err.id) {
             if let Some(subscriber) = self.subscribers.get_mut(&index) {
                 if let Err(e) = subscriber.on_error(err) {
@@ -165,7 +166,7 @@ impl Market {
         }
     }
 
-    fn handle_success(&mut self, suc: SResponse<Option<i64>>) {
+    fn handle_strategy_client_success(&mut self, suc: SResponse<Option<i64>>) {
         if let Some(index) = self.requests.remove(&suc.id) {
             if let Some(subscriber) = self.subscribers.get_mut(&index) {
                 if let Err(e) = subscriber.on_response(suc) {
@@ -175,7 +176,7 @@ impl Market {
         }
     }
 
-    fn handle_stream(&mut self, stream: MarketStream) -> anyhow::Result<()> {
+    fn handle_strategy_client_stream(&mut self, stream: MarketStream) -> anyhow::Result<()> {
         let s = match &stream {
             MarketStream::BookTicker(book) => book.stream().clone(),
             MarketStream::Kline(kline) => kline.stream().clone(),
@@ -221,7 +222,7 @@ impl Market {
         self.txs.insert(addr.clone(), tx.clone());
     }
 
-    pub fn handle_login(
+    pub fn handle_strategy_client_login(
         &mut self,
         addr: &SocketAddr,
         req: &SRequest<SLogin>,
@@ -233,16 +234,16 @@ impl Market {
                     .insert(addr.clone(), Subscriber::new(tx.clone()));
             }
         }
-        self.reply(addr, req.id, req.params.clone())
+        self.reply_to_strategy_client(addr, req.id, req.params.clone())
     }
 
-    pub async fn handle_subscribe(
+    pub async fn handle_strategy_client_subscribe(
         &mut self,
         addr: &SocketAddr,
         req: &mut SRequest<Vec<String>>,
     ) -> anyhow::Result<()> {
         if !self.validate_login(addr) {
-            return self.reply(
+            return self.reply_to_strategy_client(
                 addr,
                 req.id,
                 SError {
@@ -279,7 +280,9 @@ impl Market {
                 symbols.push(symbol);
             }
 
-            let id = self.send(addr, "SUBSCRIBE".into(), symbols.clone()).await?;
+            let id = self
+                .send_to_exchange(addr, "SUBSCRIBE".into(), symbols.clone())
+                .await?;
             if let Some(subscriber) = self.subscribers.get_mut(addr) {
                 subscriber.on_subscribe(id, req.id, symbols);
             }
@@ -288,13 +291,13 @@ impl Market {
         Ok(())
     }
 
-    fn handle_event(&mut self, event: Event) {
+    fn handle_strategy_client_event(&mut self, event: Event) {
         debug!("{:?}", event);
         match event {
-            Event::Success(suc) => self.handle_success(suc),
-            Event::Error(e) => self.handle_error(e),
+            Event::Success(suc) => self.handle_strategy_client_success(suc),
+            Event::Error(e) => self.handle_strategy_client_error(e),
             Event::Stream(stream) => {
-                if let Err(e) = self.handle_stream(stream) {
+                if let Err(e) = self.handle_strategy_client_stream(stream) {
                     error!("{}", e)
                 }
             }
@@ -302,13 +305,13 @@ impl Market {
         }
     }
 
-    pub fn handle_disconnect(
+    pub fn handle_strategy_client_disconnect(
         &mut self,
         addr: &SocketAddr,
         parser: &JsonParser,
     ) -> anyhow::Result<()> {
         if let Some(id) = parser.get("id") {
-            self.reply(
+            self.reply_to_strategy_client(
                 addr,
                 i64::deserialize(id)?,
                 SError {
