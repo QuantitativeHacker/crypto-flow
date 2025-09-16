@@ -3,7 +3,7 @@ use crate::subscription::Subscription;
 use crate::ws::WebSocketClient;
 use crate::{constant::*, Order, PositionRsp};
 use crate::{Event, Position};
-use cryptoflow::chat::{SError, SLogin, SLoginResponse, SPositionReq, SRequest, SResponse};
+use cryptoflow::chat::{Error, Response, SLogin, SLoginResponse, SPositionReq, SRequest};
 use log::*;
 use pyo3::prelude::*;
 use pyo3_stub_gen::derive::{gen_stub_pyclass, gen_stub_pymethods};
@@ -64,7 +64,7 @@ impl Session {
         Ok(())
     }
 
-    fn on_products(&mut self, rsp: SResponse<Vec<Product>>) -> anyhow::Result<()> {
+    fn on_products(&mut self, rsp: Response<Vec<Product>>) -> anyhow::Result<()> {
         let mut products = rsp.result;
         let cnt = products.len();
         while let Some(product) = products.pop() {
@@ -79,7 +79,7 @@ impl Session {
         Ok(())
     }
 
-    fn on_positions(&mut self, rsp: SResponse<PositionRsp>) -> anyhow::Result<()> {
+    fn on_positions(&mut self, rsp: Response<PositionRsp>) -> anyhow::Result<()> {
         let result = rsp.result;
         let positions = result.positions;
         for position in positions {
@@ -99,7 +99,7 @@ impl Session {
         Ok(())
     }
 
-    fn on_error(&mut self, response: SResponse<SError>) {
+    fn on_error(&mut self, response: Response<Error>) {
         panic!("{:?}", response);
     }
 

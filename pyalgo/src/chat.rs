@@ -2,7 +2,7 @@ use crate::constant::*;
 use binance::model::symbol::BinanceSymbol;
 use chrono::DateTime;
 use chrono_tz::{Asia::Shanghai, Tz};
-use cryptoflow::chat::{ErrorResponse, SLoginResponse, SResponse, Success};
+use cryptoflow::chat::{ErrorResponse, Response, SLoginResponse, Success};
 use cryptoflow::trading_rules::TradingRules;
 use pyo3::prelude::*;
 use pyo3::{conversion::IntoPyObject, IntoPyObjectExt};
@@ -351,7 +351,7 @@ impl Product {
     }
 }
 
-type Products = SResponse<Vec<Product>>;
+type Products = Response<Vec<Product>>;
 
 #[derive(Debug, Deserialize)]
 pub struct PositionRsp {
@@ -362,14 +362,14 @@ pub struct PositionRsp {
 #[derive(Debug, Deserialize)]
 #[serde(untagged)]
 pub enum Message {
-    Success(SSuccess),
+    Success(Success),
     Login(SLoginResponse),
-    Error(SErrorResponse),
+    Error(ErrorResponse),
     Depth(Depth),
     Kline(Kline),
     Order(Order),
     Products(Products),
-    Positions(SResponse<PositionRsp>),
+    Positions(Response<PositionRsp>),
     Position(Position),
     Close,
 }
