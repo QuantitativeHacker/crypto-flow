@@ -91,9 +91,13 @@ check_conda() {
     return 0
   elif [[ -f "$HOME/miniconda3/bin/conda" ]]; then
     export PATH="$HOME/miniconda3/bin:$PATH"
+    # 初始化conda以便使用conda activate
+    eval "$(conda shell.bash hook)" 2>/dev/null || true
     return 0
   elif [[ -f "$HOME/anaconda3/bin/conda" ]]; then
     export PATH="$HOME/anaconda3/bin:$PATH"
+    # 初始化conda以便使用conda activate
+    eval "$(conda shell.bash hook)" 2>/dev/null || true
     return 0
   else
     return 1
@@ -139,6 +143,38 @@ setup_local_environment() {
 
   echo "[成功] 本地miniconda环境配置完成!"
   echo "[信息] 激活环境: conda activate $ENV_NAME"
+  
+  # 确保conda在PATH中并初始化
+  if [[ -f "$HOME/miniconda3/bin/conda" ]]; then
+    echo "[信息] 添加miniconda到PATH环境变量"
+    # 检查是否已经在.bashrc中
+    if ! grep -q 'miniconda3/bin' ~/.bashrc 2>/dev/null; then
+      echo 'export PATH="$HOME/miniconda3/bin:$PATH"' >> ~/.bashrc
+      echo '# >>> conda initialize >>>'
+      "$HOME/miniconda3/bin/conda" init bash
+      echo '# <<< conda initialize <<<'
+    fi
+    echo "[信息] conda环境变量已配置，重新加载shell配置"
+    source ~/.bashrc 2>/dev/null || true
+  elif [[ -f "$HOME/anaconda3/bin/conda" ]]; then
+    echo "[信息] 添加anaconda到PATH环境变量"
+    # 检查是否已经在.bashrc中
+    if ! grep -q 'anaconda3/bin' ~/.bashrc 2>/dev/null; then
+      echo 'export PATH="$HOME/anaconda3/bin:$PATH"' >> ~/.bashrc
+      echo '# >>> conda initialize >>>'
+      "$HOME/anaconda3/bin/conda" init bash
+      echo '# <<< conda initialize <<<'
+    fi
+    echo "[信息] conda环境变量已配置，重新加载shell配置"
+    source ~/.bashrc 2>/dev/null || true
+  fi
+  
+  # 重新检查conda是否可用
+  if check_conda; then
+    echo "[信息] conda现在可以使用了: $(command -v conda)"
+  else
+    echo "[警告] conda可能需要重新打开终端才能使用"
+  fi
 }
 
 run_in_docker() {
