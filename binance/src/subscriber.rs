@@ -7,7 +7,7 @@ pub struct Subscriber {
     symbols: HashSet<String>,
     tx: UnboundedSender<Message>,
     /// 发送到交易所的请求id与策略放请求的映射
-    ids: HashMap<i64, i64>,
+    exchange_reqid_to_client_reqid: HashMap<i64, i64>,
 }
 
 impl Subscriber {
@@ -15,7 +15,7 @@ impl Subscriber {
         Self {
             symbols: HashSet::default(),
             tx,
-            ids: HashMap::default(),
+            exchange_reqid_to_client_reqid: HashMap::default(),
         }
     }
 
@@ -23,8 +23,8 @@ impl Subscriber {
         &mut self,
         mut response: Response<T>,
     ) -> anyhow::Result<()> {
-        if let Some(id) = self.ids.remove(&response.id) {
-            response.id = id;
+        if let Some(client_req_id) = self.exchange_reqid_to_client_reqid.remove(&response.id) {
+            response.id = client_req_id;
             self.tx
                 .send(Message::Text(serde_json::to_string(&response)?.into()))?;
         }
@@ -32,16 +32,22 @@ impl Subscriber {
     }
 
     pub fn on_exchange_error(&mut self, mut response: ErrorResponse) -> anyhow::Result<()> {
-        if let Some(id) = self.ids.remove(&response.id) {
-            response.id = id;
+        if let Some(client_req_id) = self.exchange_reqid_to_client_reqid.remove(&response.id) {
+            response.id = client_req_id;
             self.tx
                 .send(Message::Text(serde_json::to_string(&response)?.into()))?;
         }
         Ok(())
     }
 
-    pub fn on_strategy_client_subscribe(&mut self, id: i64, req: i64, symbols: Vec<String>) {
-        self.ids.insert(id, req);
+    pub fn on_strategy_client_subscribe(
+        &mut self,
+        exchange_req_id: i64,
+        client_req_id: i64,
+        symbols: Vec<String>,
+    ) {
+        self.exchange_reqid_to_client_reqid
+            .insert(exchange_req_id, client_req_id);
         self.symbols.extend(symbols);
     }
 

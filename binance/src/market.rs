@@ -63,6 +63,7 @@ impl Market {
             .await?;
         self.requests.insert(id, addr.clone());
         self.id += 1;
+        // 注意，这里返回原本的id
         Ok(id)
     }
 
