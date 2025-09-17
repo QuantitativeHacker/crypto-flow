@@ -2260,7 +2260,6 @@ dependencies = [
  "rust_decimal",
  "serde",
  "serde_json",
- "tokio",
  "url 2.5.7",
  "websocket 0.27.1",
 ]
