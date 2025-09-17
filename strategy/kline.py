@@ -211,7 +211,7 @@ if __name__ == "__main__":
         addr="ws://localhost:8111", session_id=1, name="test", trading=True
     )
 
-    depth = session.subscribe("dogeusdt", "depth")
+    depth = session.subscribe("btcusdt", "depth")
     kline = session.subscribe("btcusdt", "kline:1m")
     demo = Demo(depth, kline)
     eng.run()

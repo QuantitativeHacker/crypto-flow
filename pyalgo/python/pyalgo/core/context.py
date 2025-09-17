@@ -42,23 +42,24 @@ class Context(ContextBase):
     def subscribe(
         self, symbol: str, stream: str
     ) -> Union[DepthSubscription, BarSubscription]:
-        if symbol in self.tradings:
-            raise Exception(f"Duplicate subscribe {symbol}")
+        key = symbol + "@" + stream
+        if key in self.tradings:
+            raise Exception(f"Duplicate subscribe {key}")
 
         sub = self.session.subscribe(symbol, stream)
-        key = symbol + "@" + stream
+        
 
         if stream.startswith("kline"):
             bar = BarSubscription(sub, self)
             self.subscriptions[key] = bar
-            self.tradings[symbol] = bar
+            self.tradings[key] = bar
 
             return bar
 
         elif stream.startswith("depth") or stream == "bbo":
             depth = DepthSubscription(sub, self)
             self.subscriptions[key] = depth
-            self.tradings[symbol] = depth
+            self.tradings[key] = depth
 
             return depth
 
