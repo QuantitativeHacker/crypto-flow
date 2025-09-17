@@ -45,7 +45,6 @@ impl WebSocketClient {
                 Ok(message) => match &message {
                     OwnedMessage::Text(text) => {
                         debug!("ws text {} bytes", text.len());
-                        println!("recv message {:.100}", text);
                         let event = serde_json::from_str::<chat::Message>(&text);
                         match event {
                             Ok(event) => {
