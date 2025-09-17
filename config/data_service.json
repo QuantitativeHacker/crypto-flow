@@ -1,0 +1,26 @@
+{
+  "websocket_addr": "ws://localhost:8111",
+  "session_id": 0,
+  "session_name": "data_service",
+  "trading": false,
+  "csv_dir": "data/csv",
+  "subscriptions": [
+    {
+      "symbol": "btcusdt",
+      "stream": "kline:1m"
+    },
+    {
+      "symbol": "ethusdt",
+      "stream": "kline:1m"
+    },
+    {
+      "symbol": "btcusdt",
+      "stream": "depth"
+    },
+    {
+      "symbol": "ethusdt",
+      "stream": "depth"
+    }
+  ],
+  "engine_interval": 0.001
+}
