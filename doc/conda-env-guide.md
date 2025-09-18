@@ -4,63 +4,42 @@
 
 在local模式下，cryptoflow项目完全使用conda来管理Python、Rust、以及所有系统依赖，避免污染主机环境。
 
-## 🚀 快速开始
+## 快速开始
 
-### 1. 一键环境配置
 ```bash
 # 首次使用 - 自动配置conda环境
 ./run_cryptoflow.sh --setup
 ```
 
-这个命令会：
-- 检测并配置conda路径
-- 创建名为 `cryptoflow` 的conda环境
-- 安装所有依赖（Python、Rust、系统库等）
-
-### 2. 日常开发使用
+这个命令会检测并配置conda路径，创建名为 `cryptoflow` 的conda环境，安装所有依赖（Python、Rust、系统库等）。
+可以通过下面的命令激活环境
 ```bash
-# 使用conda环境运行项目
-./run_cryptoflow.sh spot --local
-./run_cryptoflow.sh usdt --local
+conda activate cryptoflow
 ```
 
-## 🔧 Conda环境详解
+## Conda环境详解
 
-### 环境配置文件
+
 项目使用 `environment.yml` 定义conda环境：
 
-```yaml
-name: cryptoflow
-channels:
-  - conda-forge
-  - defaults
-dependencies:
-  - python=3.11
-  - rust
-  - maturin
-  - pip
-  - pkg-config
-  - openssl
-  - sqlite
-  - ca-certificates
-  - pip:
-    - -r requirements.txt
+#### 激活环境
+```bash
+conda activate cryptoflow
 ```
 
-### 手动环境管理
-
+#### 查看环境信息
 ```bash
-# 激活环境（开发时使用）
-conda activate cryptoflow
-
-# 查看环境信息
 conda info --envs
 conda list
+```
 
-# 更新环境
+#### 更新环境
+```bash
 conda env update -n cryptoflow -f environment.yml
+```
 
-# 删除环境（重新开始）
+#### 删除环境（重新开始）
+```bash
 conda env remove -n cryptoflow
 ```
 
@@ -90,12 +69,12 @@ cd ..
 ./target/release/spot -c=spot.json -l=info
 ```
 
-## 📁 开发环境结构
+## 开发环境结构
 
 ```
 cryptoflow/
-├── environment.yml          # conda环境定义
-├── requirements.txt         # pip依赖
+├── environment.yml          # conda环境定义（引用requirements.txt）
+├── requirements.txt         # Python包依赖管理
 ├── run_cryptoflow.sh          # 一键运行脚本
 ├── spot.json           # 配置文件
 ├── private_key.pem     # 私钥文件
@@ -103,6 +82,20 @@ cryptoflow/
 ├── pyalgo/             # Python扩展
 └── target/             # 编译输出
 ```
+
+### 依赖管理策略
+
+本项目采用 **conda + pip 混合管理** 的方式：
+
+- **environment.yml**: 管理系统级依赖（Rust、OpenSSL、CMake等）和 conda 环境
+- **requirements.txt**: 专门管理 Python 包依赖和版本约束
+- **集成方式**: environment.yml 通过 `pip: -r requirements.txt` 引用 Python 依赖
+
+**优势：**
+1. 🔧 系统工具通过 conda 安装，确保兼容性
+2. 🐍 Python 包通过 pip 管理，版本控制更精确
+3. 🚀 CI/CD 可以单独使用 requirements.txt
+4. 📦 开发者可以选择只用 conda 或 conda+pip
 
 ## 🔍 调试和开发技巧
 
@@ -118,35 +111,7 @@ which cargo
 conda list | grep -E "(rust|python|maturin)"
 ```
 
-### 2. 增量编译
-```bash
-conda activate cryptoflow
-cd cryptoflow/binance/spot
-cargo build --release  # 只编译changed的部分
-```
-
-### 3. Python扩展开发
-```bash
-conda activate cryptoflow
-cd cryptoflow/pyalgo
-maturin develop --release  # 重新编译Python扩展
-python -c "import pyalgo; print(pyalgo.__file__)"  # 验证
-```
-
-### 4. 依赖管理
-```bash
-# 添加新的conda包
-conda install -n cryptoflow new-package
-
-# 添加新的pip包
-conda activate cryptoflow
-pip install new-package
-
-# 导出当前环境（更新environment.yml）
-conda env export -n cryptoflow > environment.yml
-```
-
-## 🚨 常见问题
+## 常见问题
 
 ### Q: conda命令找不到
 **A:** 脚本会自动检测以下位置的conda：
@@ -164,46 +129,9 @@ conda env remove -n cryptoflow
 ./run_cryptoflow.sh --setup
 ```
 
-### Q: Rust编译失败
-**A:** 确保conda环境中包含必要的系统库：
-```bash
-conda activate cryptoflow
-conda install pkg-config openssl sqlite
-```
-
 ### Q: 想要使用不同的Python版本
 **A:** 修改 `environment.yml` 中的Python版本，然后重新创建环境：
 ```bash
 conda env remove -n cryptoflow
 ./run_cryptoflow.sh --setup
 ```
-
-## 🎯 性能优化
-
-### 1. 并行编译
-```bash
-conda activate cryptoflow
-export CARGO_BUILD_JOBS=$(nproc)  # 使用所有CPU核心
-```
-
-### 2. 编译缓存
-conda环境会自动缓存编译结果，避免重复编译。
-
-### 3. 镜像加速
-```bash
-# 配置conda镜像（可选）
-conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/main
-conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/pkgs/free
-conda config --add channels https://mirrors.tuna.tsinghua.edu.cn/anaconda/cloud/conda-forge
-```
-
-## 📝 总结
-
-使用conda进行开发的优势：
-- ✅ **完全隔离**：不污染主机Python/Rust环境
-- ✅ **一键配置**：自动安装所有依赖
-- ✅ **跨平台**：Windows/macOS/Linux统一体验
-- ✅ **版本固定**：确保团队环境一致
-- ✅ **易于维护**：通过environment.yml版本控制
-
-这种方式特别适合多人协作和CI/CD环境！

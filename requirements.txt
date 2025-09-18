@@ -1,8 +1,22 @@
-# Core dependencies for Python examples
+# Core data processing dependencies
 numpy>=1.23,<3
 pandas>=1.5,<3
 
-# Parquet support (choose one engine)
+# Data storage and serialization
 pyarrow>=12,<17
-# or
+
+# Web and API dependencies
+requests>=2.28,<3
+websockets>=11.0,<13
+
+# Development tools
+jupyter>=1.0,<2
+ipython>=8.0,<9
+ipykernel>=6.0,<7
+
+# Development and testing
+pytest>=7.0,<8
+pytest-asyncio>=0.21,<1
+
+# Optional: faster CSV parsing
 # fastparquet>=0.8

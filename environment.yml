@@ -2,11 +2,11 @@ name: cryptoflow
 channels:
   - conda-forge
 dependencies:
+  # Python runtime
   - python=3.11
   - pip
-  - numpy
-  - pandas
-  - pyarrow
+  
+  # System-level dependencies for Rust compilation
   - rust>=1.74
   - maturin>=1.5
   - openssl
@@ -14,7 +14,8 @@ dependencies:
   - cmake
   - make
   - git
+  
+  # All Python packages managed via requirements.txt
   - pip:
-      - websockets
-      - ipykernel
+      - -r requirements.txt
 
